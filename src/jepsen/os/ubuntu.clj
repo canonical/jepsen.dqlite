@@ -1,4 +1,4 @@
-(ns jepsen.os.ubuntu
+(ns dqlite.os.ubuntu
   "Common tasks for Ubuntu/CockroachDB boxes."
   (:use clojure.tools.logging)
   (:require [clojure.set :as set]

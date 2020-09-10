@@ -1,24 +1,20 @@
-# jepsen.dqlite
+# Dqlite Jepsen Test
 
-Jepsen tests for Dqlite
+A Clojure library designed to test Dqlite, an embedded SQL database with Raft
+consensus.
 
-## Usage
+## What is being tested?
 
-Install go-dqlite via ./go-dqlite.nix and import ./dqlite-cluster.nix in NixOS
-config, then
-`nix-shell -p leiningen --run "lein run test --time-limit 30 --concurrency 10`
+The tests run concurrent operations to some shared data from different nodes in
+a Dqlite cluster, checking that the operations preserve the consistency
+properties defined in each test.  During the tests, various combinations of
+nemeses can be added to interfere with the database operations and exercise the
+database's consistency protocols.
 
-## License
+## Running
 
-Copyright © 2020 FIXME
+To run a single test, try
 
-This program and the accompanying materials are made available under the
-terms of the Eclipse Public License 2.0 which is available at
-http://www.eclipse.org/legal/epl-2.0.
-
-This Source Code may also be made available under the following Secondary
-Licenses when the conditions for such availability set forth in the Eclipse
-Public License, v. 2.0 are satisfied: GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or (at your
-option) any later version, with the GNU Classpath Exception which is available
-at https://www.gnu.org/software/classpath/license.html.
+```
+lein run test --workload sets --nemesis kill --time-limit 60 --test-count 1 --concurrency 2n
+```
