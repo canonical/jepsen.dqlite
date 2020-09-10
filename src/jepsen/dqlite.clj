@@ -11,6 +11,7 @@
                     [control :as c]
                     [db :as db]
                     [generator :as gen]
+                    [nemesis :as nemesis]
                     [tests :as tests]
                     [util :as util :refer [meh]]]
             [jepsen.control.util :as cu]
@@ -60,7 +61,8 @@
               :chdir   dir}
              binary
              :-dir dir
-             :-node (name node))
+             :-node (name node)
+             :-cluster (str/join "," (:nodes test)))
             (Thread/sleep 5000)))
 
     (teardown! [_ test node]
@@ -85,7 +87,7 @@
 (defn parse-list
   "Parses a list of values. Passes through `nil`."
   [s]
-    (when s (map parse-int (str/split (str/trim-newline s) #" "))))
+    (when s (map parse-int (str/split s #" "))))
 
 (defn sets-add
   [conn value]
@@ -94,7 +96,7 @@
                                        :socket-timeout 5000
                                        :connection-timeout 5000})))]
     (if (str/includes? result "Error")
-      (throw+ {:type :write-error :msg (str/trim-newline result)})
+      (throw+ {:type :write-error :msg result})
       value)))
 
 (defn sets-read
@@ -117,9 +119,20 @@
     (case (:f op)
       :add (try+
             (assoc op :type :ok, :value (sets-add conn (:value op)))
+            (catch [:msg "Error: context deadline exceeded"] ex
+              (assoc op :type :info, :error :timeout))
+            (catch [:msg "Error: failed to create dqlite connection: no available dqlite leader server found"] ex
+              (assoc op :type :fail, :error :unavailable))
             (catch [:msg "Error: database is locked"] ex
               (assoc op :type :fail, :error :locked)))
-      :read (assoc op :type :ok, :value (sets-read conn))
+      :read (try+
+             (assoc op :type :ok, :value (sets-read conn))
+             (catch [:msg "Error: context deadline exceeded"] ex
+               (assoc op :type :info, :error :timeout))
+             (catch [:msg "Error: failed to create dqlite connection: no available dqlite leader server found"] ex
+               (assoc op :type :fail, :error :unavailable))
+             (catch [:msg "Error: database is locked"] ex
+               (assoc op :type :fail, :error :locked)))
       ))
 
   (teardown! [this test])
@@ -207,10 +220,11 @@
   [opts]
   (merge tests/noop-test
          opts
-         {:name "dqlite"
-          :os ubuntu/os
-          :db (db "master")
-          :client (SetsClient. nil)
+         {:name      "dqlite"
+          :os        ubuntu/os
+          :db        (db "master")
+          :client    (SetsClient. nil)
+          :nemesis   (nemesis/partition-random-halves)
           :generator (gen/phases
                       (->> (range)
                            (map (partial array-map
@@ -219,15 +233,19 @@
                                          :value))
                            gen/seq
                            (gen/stagger 1/10)
-                           (gen/nemesis nil)
-                           (gen/time-limit 15))
+                           (gen/nemesis
+                            (gen/seq (cycle [(gen/sleep 5)
+                                             {:type :info, :f :start}
+                                             (gen/sleep 5)
+                                             {:type :info, :f :stop}])))
+                           (gen/time-limit 30))
                       (gen/each
                        (->> {:type :invoke, :f :read, :value nil}
                             (gen/limit 2)
                             gen/clients)))
-          :checker (checker/compose
-                    {:perf     (checker/perf)
-                     :details  (check-sets)})
+          :checker   (checker/compose
+                      {:perf     (checker/perf)
+                       :details  (check-sets)})
           }))
 
 (defn -main

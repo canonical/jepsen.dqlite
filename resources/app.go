@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/canonical/go-dqlite/app"
 	"github.com/canonical/go-dqlite/client"
@@ -26,7 +28,8 @@ func makeAddress(addr *net.IPAddr, port int) string {
 
 func main() {
 	dir := flag.String("dir", "", "data directory")
-	node := flag.String("node", "", "node host name")
+	node := flag.String("node", "", "node name")
+	cluster := flag.String("cluster", "", "names of all nodes in the cluster")
 	join := []string{}
 
 	flag.Parse()
@@ -36,25 +39,30 @@ func main() {
 		log.Fatalf("resolve node address: %v", err)
 	}
 
+	log.Printf("starting %q with IP %q and cluster %q", *node, addr.IP.String(), *cluster)
+
 	logFunc := func(l client.LogLevel, format string, a ...interface{}) {
 		log.Printf(fmt.Sprintf("%s: %s\n", l.String(), format), a...)
 	}
 
-	switch *node {
-	case "n2":
-		join = []string{"n1:8081"}
-	case "n3":
-		join = []string{"n1:8081", "n2:8081"}
-	case "n4":
-		join = []string{"n1:8081", "n2:8081", "n3:8081"}
-	case "n5":
-		join = []string{"n1:8081", "n2:8081", "n3:8081", "n4:8081"}
+	// Figure out the nodes to use for joining.
+	nodes := strings.Split(*cluster, ",")
+	for i, name := range nodes {
+		if name == *node {
+			for j := 0; j < i; j++ {
+				join = append(join, fmt.Sprintf("%s:8081", nodes[j]))
+			}
+			break
+		}
 	}
 
 	app, err := app.New(*dir,
 		app.WithAddress(makeAddress(addr, 8081)),
 		app.WithCluster(join),
-		app.WithLogFunc(logFunc))
+		app.WithLogFunc(logFunc),
+		app.WithNetworkLatency(5*time.Millisecond),
+		app.WithVoters(len(nodes)),
+	)
 	if err != nil {
 		log.Fatalf("create app: %v", err)
 	}
@@ -68,17 +76,30 @@ func main() {
 		log.Fatalf("open database: %v", err)
 	}
 
-	if _, err := db.Exec(schema); err != nil {
-		log.Fatalf("create schema: %v", err)
+	for i := 0; i < 10; i++ {
+		_, err := db.Exec(schema)
+		if err == nil {
+			break
+		}
+		if err.Error() != "database is locked" {
+			log.Fatalf("create schema: %v", err)
+		}
+		if i == 9 {
+			log.Fatalf("create schema: database still locked after 10 retries", err)
+		}
+		time.Sleep(250 * time.Millisecond)
 	}
 
 	http.HandleFunc("/set", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
 		result := ""
 		switch r.Method {
 		case "GET":
-			rows, err := db.Query("SELECT val FROM test_set")
+			rows, err := db.QueryContext(ctx, "SELECT val FROM test_set")
 			if err != nil {
 				result = fmt.Sprintf("Error: %s", err.Error())
+				goto done
 			}
 			defer rows.Close()
 			for i := 0; rows.Next(); i++ {
@@ -86,7 +107,7 @@ func main() {
 				err := rows.Scan(&val)
 				if err != nil {
 					result = fmt.Sprintf("Error: %s", err.Error())
-					break
+					goto done
 				}
 				if i == 0 {
 					result = fmt.Sprintf("%s", val)
@@ -101,11 +122,12 @@ func main() {
 		case "POST":
 			result = "done"
 			value, _ := ioutil.ReadAll(r.Body)
-			if _, err := db.Exec("INSERT INTO test_set(val) VALUES(?)", value); err != nil {
+			if _, err := db.ExecContext(ctx, "INSERT INTO test_set(val) VALUES(?)", value); err != nil {
 				result = fmt.Sprintf("Error: %s", err.Error())
 			}
 		}
-		fmt.Fprintf(w, "%s\n", result)
+	done:
+		fmt.Fprintf(w, "%s", result)
 	})
 
 	listener, err := net.Listen("tcp", makeAddress(addr, 8080))
