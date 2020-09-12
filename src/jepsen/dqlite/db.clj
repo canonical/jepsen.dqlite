@@ -4,7 +4,8 @@
             [jepsen [control :as c]
                     [db :as db]]
             [jepsen.control.util :as cu]
-            [jepsen.os.debian :as debian]))
+            [jepsen.os.debian :as debian]
+            [jepsen.dqlite [client :as dc]]))
 
 (def dir "/opt/dqlite")
 (def bin "app")
@@ -46,7 +47,7 @@
   "Stop the Go dqlite test application"
   [test node]
   (cu/stop-daemon! binary pidfile))
-  
+
 (defn db
   "Dqlite test application"
   []
@@ -66,4 +67,22 @@
 
     db/LogFiles
     (log-files [_ test node]
-      [logfile])))
+      [logfile])
+
+    db/Process
+    (start! [_ test node]
+      (start! test node))
+
+    (kill! [_ test node]
+      (stop! test node))
+
+    db/Pause
+    (pause!  [_ test node] (c/su (cu/grepkill! :stop "app")))
+    (resume! [_ test node] (c/su (cu/grepkill! :cont "app")))
+
+    db/Primary
+    (setup-primary! [db test node])
+    (primaries [db test]
+      (list (dc/leader test (rand-nth (:nodes test)))))
+
+  ))

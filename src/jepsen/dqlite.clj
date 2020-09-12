@@ -7,9 +7,10 @@
                     [cli :as jc]
                     [generator :as gen]
                     [tests :as tests]]
+            [jepsen.checker.timeline :as timeline]
             [jepsen.os.ubuntu :as ubuntu]
             [jepsen.dqlite [db :as db]
-                           [sets :as set]
+                           [set :as set]
                            [nemesis :as nemesis]]))
 
 (def workloads
@@ -17,92 +18,79 @@
   workloads."
   {:set             set/workload})
 
-(def plot-spec
-  "Specification for how to render operations in plots"
-  {:nemeses #{{:name        "kill"
-               :color       "#E9A4A0"
-               :start       #{:kill-app}
-               :stop        #{:start-app}}
-              {:name        "pause"
-               :color       "#C5A0E9"
-               :start       #{:pause-app}
-               :stop        #{:resume-app}}
-              {:name        "partition"
-               :color       "#A0C8E9"
-               :start       #{:start-partition}
-               :stop        #{:stop-partition}}
-              {:name        "clock"
-               :color       "#A0E9DB"
-               :start       #{:strobe-clock :bump-clock}
-               :stop        #{:reset-clock}
-               :fs          #{:check-clock-offsets}}}})
-
 (defn test
   "Constructs a test from a map of CLI options."
   [opts]
-  (let [name (str "Dqlite " (:version opts))
-        workload  ((get workloads (:workload opts)) opts)
-        nemesis   (nemesis/nemesis opts)
-        gen       (->> (:generator workload)
-                       (gen/nemesis (:generator nemesis))
-                       (gen/time-limit (:time-limit opts)))
-        gen       (if (:final-generator workload)
-                    (gen/phases gen
-                                (gen/log "Healing cluster")
-                                (gen/nemesis (:final-generator nemesis))
-                                (gen/log "Waiting for recovery")
-                                (gen/sleep (:final-recovery-time opts))
-                                (gen/clients (:final-generator workload)))
-                    gen)]
+  (let [workload-name (:workload opts)
+        workload      ((workloads workload-name) opts)
+        db            (db/db)
+        nemesis       (nemesis/nemesis-package
+                        {:db        db
+                         :nodes     (:nodes opts)
+                         :faults    (:nemesis opts)
+                         :partition {:targets [:primaries :one :majority :majorities-ring]}
+                         :pause     {:targets [nil :one :primaries :majority :all]}
+                         :kill      {:targets [nil :one :primaries :majority :all]}
+                         :interval  (:nemesis-interval opts)})]
     (merge tests/noop-test
            opts
-           (dissoc workload :final-generator)
-           {:name      name
+           {:name      (str "dqlite-" (name workload-name))
+            :pure-generators true
             :os        ubuntu/os
-            :db        (db/db)
+            :db        db
+            :checker    (checker/compose
+                          {:perf        (checker/perf {:nemeses (:perf nemesis)})
+                           :clock       (checker/clock-plot)
+                           :stats       (checker/stats)
+                           :exceptions  (checker/unhandled-exceptions)
+                           :timeline    (timeline/html)
+                           :workload    (:checker workload)})
             :client    (:client workload)
             :nemesis   (:nemesis nemesis)
-            :generator gen
-            :plot       plot-spec
-            :checker    (checker/compose
-                          {:perf        (checker/perf)
-                           :clock-skew  (checker/clock-plot)
-                           :workload    (:checker workload)})})))
+            :generator (gen/phases
+                        (->> (:generator workload)
+                             (gen/stagger (/ (:rate opts)))
+                             (gen/nemesis (:generator nemesis))
+                             (gen/time-limit (:time-limit opts)))
+                         (gen/log "Healing cluster")
+                         (gen/nemesis (:final-generator nemesis))
+                         (gen/log "Waiting for recovery")
+                         (gen/sleep 2)
+                         (gen/clients (:final-generator workload)))})))
 
-(def nemesis-specs
-  "These are the types of failures that the nemesis can perform."
-  #{:partition
-    :partition-one
-    :partition-leader
-    :partition-half
-    :partition-ring
-    :kill
-    :pause})
+(def special-nemeses
+  "A map of special nemesis names to collections of faults"
+  {:none []
+   :all  [:pause :kill :partition :clock]})
 
 (defn parse-nemesis-spec
-  "Parses a comma-separated string of nemesis types, and turns it into an
-  option map like {:kill-alpha? true ...}"
-  [s]
-  (if (= s "none")
-    {}
-    (->> (str/split s #",")
-         (map (fn [o] [(keyword o) true]))
-         (into {}))))
+  "Takes a comma-separated nemesis string and returns a collection of keyword
+  faults."
+  [spec]
+  (->> (str/split spec #",")
+       (map keyword)
+       (mapcat #(get special-nemeses % [%]))))
 
 (def cli-opts
   "Command line options for tools.cli"
   [["-v" "--version VERSION" "What version of Dqlite should to install"
     :default "master"]
-   [nil "--nemesis SPEC" "A comma-separated list of nemesis types"
-    :default {:interval 10}
-    :parse-fn parse-nemesis-spec
-    :assoc-fn (fn [m k v] (update m :nemesis merge v))
-    :validate [(fn [parsed]
-                 (and (map? parsed)
-                      (every? nemesis-specs (keys parsed))))
-               (str "Should be a comma-separated list of failure types. A failure "
-                    (.toLowerCase (jc/one-of nemesis-specs))
-                    ". Or, you can use 'none' to indicate no failures.")]]])
+
+   [nil "--nemesis FAULTS" "A comma-separated list of nemesis faults to enable"
+     :parse-fn parse-nemesis-spec
+     :validate [(partial every? #{:pause :kill :partition :clock :member})
+                "Faults must be pause, kill, partition, clock, or member, or the special faults all or none."]]
+
+   [nil "--nemesis-interval SECS" "Roughly how long between nemesis operations."
+    :default 5
+    :parse-fn read-string
+    :validate [pos? "Must be a positive number."]]
+
+   ["-r" "--rate HZ" "Approximate request rate, in hz"
+    :default 10
+    :parse-fn read-string
+    :validate [pos? "Must be a positive number."]]])
+
 
 (def single-test-opts
   "CLI options for running a single test"

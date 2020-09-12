@@ -1,4 +1,4 @@
-(ns jepsen.dqlite.sets
+(ns jepsen.dqlite.set
   (:require [clojure.string :as str]
             [jepsen [client :as client]
                     [checker :as checker]
@@ -39,13 +39,14 @@
 
   (close! [_ test]))
 
-(defn adds
+(defn w
   []
   (->> (range)
-       (map (fn [x] {:type :invoke, :f :add, :value x, :bar "baz"}))
-       (gen/seq)))
+       (map (fn [x] {:type :invoke, :f :add, :value x}))
+       ;(gen/seq)
+       ))
 
-(defn reads
+(defn r
   []
   {:type :invoke, :f :read, :value nil})
 
@@ -54,6 +55,5 @@
   [opts]
   (let [c (:concurrency opts)]
     {:client (Client. nil)
-     :generator (->> (gen/reserve (/ c 2) (adds) (reads))
-                     (gen/stagger 1/10))
+     :generator (gen/reserve (/ c 2) (repeat (r)) (w))
      :checker (checker/set-full)}))
