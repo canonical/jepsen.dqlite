@@ -18,3 +18,31 @@ To run a single test, try
 ```
 lein run test --workload sets --nemesis kill --time-limit 60 --test-count 1 --concurrency 2n
 ```
+
+#### Workloads
+
++ **set** concurrent unique appends to a single table
+
+#### Nemeses
+
++ **none** no nemesis
++ **kill** kills random Dqlite test application processes
++ **partition** network partitions
++ **partition-half** n/2+1 splits
++ **partition-one** isolate single nodes
++ **partition-leader** isolate the leader
++ **partition-ring** each node can see separate, intersecting majorities
++ **pause** process pauses
+
+#### Time Limit
+
+Time to run test, usually 60, 180, ... seconds
+
+#### Test Count
+
+Times to run test, should >= 1
+
+#### Concurrency
+
+Number of threads. 2n means "twice the number of nodes", and is a good default.
+

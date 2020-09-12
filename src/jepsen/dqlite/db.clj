@@ -7,7 +7,8 @@
             [jepsen.os.debian :as debian]))
 
 (def dir "/opt/dqlite")
-(def binary (str dir "/app"))
+(def bin "app")
+(def binary (str dir "/" bin))
 (def logfile (str dir "/app.log"))
 (def pidfile (str dir "/app.pid"))
 

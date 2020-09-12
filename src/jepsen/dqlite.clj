@@ -54,7 +54,9 @@
     :partition-one
     :partition-leader
     :partition-half
-    :partition-ring})
+    :partition-ring
+    :kill
+    :pause})
 
 (defn parse-nemesis-spec
   "Parses a comma-separated string of nemesis types, and turns it into an

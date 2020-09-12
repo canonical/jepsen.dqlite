@@ -3,7 +3,7 @@
   (:require [clojure.string :as str]
             [slingshot.slingshot :refer [try+ throw+]]
             [clj-http.client :as http])
-  (:import (java.net ConnectException SocketException)))
+  (:import (java.net ConnectException SocketException SocketTimeoutException)))
 
 (defn endpoint
   "The root HTTP URL of the test Dqlite application API endpoint on a node."
@@ -48,7 +48,9 @@
            (assoc ~op :type :info, :error :timeout))
          (catch [:msg "Error: failed to create dqlite connection: no available dqlite leader server found"] e#
            (assoc ~op :type :fail, :error :unavailable))
+         (catch SocketTimeoutException e#
+           (assoc ~op :type :info, :error :connection-timeout))
          (catch SocketException e#
-           (assoc ~op :type :info, :error :connection-dropped))
+           (assoc ~op :type :info, :error :connection-error))
          (catch ConnectException e#
            (assoc ~op :type :fail, :error :connection-refused))))
