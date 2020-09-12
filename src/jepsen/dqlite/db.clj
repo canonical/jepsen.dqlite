@@ -20,7 +20,7 @@
                        version "/ubuntu focal main")]
     (debian/add-repo! "dqlite" line keyserver key)))
 
-(defn build-app!
+(defn build!
   "Build the Go dqlite test application."
   []
   (let [source (str dir "/app.go")]
@@ -29,6 +29,22 @@
      (c/upload "resources/app.go" source)
      (c/exec "go" "get" "-tags" "libsqlite3" "github.com/canonical/go-dqlite/app")
      (c/exec "go" "build" "-tags" "libsqlite3" "-o" binary source))))
+
+(defn start!
+  "Start the Go dqlite test application"
+  [test node]
+  (cu/start-daemon! {:logfile logfile
+                     :pidfile pidfile
+                     :chdir   dir}
+                    binary
+                    :-dir dir
+                    :-node (name node)
+                    :-cluster (str/join "," (:nodes test))))
+
+(defn stop!
+  "Stop the Go dqlite test application"
+  [test node]
+  (cu/stop-daemon! binary pidfile))
   
 (defn db
   "Dqlite test application"
@@ -39,20 +55,12 @@
       (setup-ppa! (:version test))
       (debian/install [:libdqlite-dev])
       (debian/install [:golang])
-      (build-app!)
-      (c/su (cu/start-daemon!
-             {:logfile logfile
-              :pidfile pidfile
-              :chdir   dir}
-             binary
-             :-dir dir
-             :-node (name node)
-             :-cluster (str/join "," (:nodes test)))
-            (Thread/sleep 5000)))
+      (build!)
+      (start! test node))
 
     (teardown! [_ test node]
       (info "tearing down dqlite test application" (:version test))
-      (cu/stop-daemon! binary pidfile)
+      (stop! test node)
       (c/su (c/exec :rm :-rf dir)))
 
     db/LogFiles
