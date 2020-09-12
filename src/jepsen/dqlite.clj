@@ -7,7 +7,7 @@
                     [cli :as jc]
                     [generator :as gen]
                     [tests :as tests]]
-            [dqlite.os.ubuntu :as ubuntu]
+            [jepsen.os.ubuntu :as ubuntu]
             [jepsen.dqlite [db :as db]
                            [sets :as set]
                            [nemesis :as nemesis]]))
@@ -16,6 +16,26 @@
   "A map of workload names to functions that can take CLI opts and construct
   workloads."
   {:set             set/workload})
+
+(def plot-spec
+  "Specification for how to render operations in plots"
+  {:nemeses #{{:name        "kill"
+               :color       "#E9A4A0"
+               :start       #{:kill-app}
+               :stop        #{:start-app}}
+              {:name        "pause"
+               :color       "#C5A0E9"
+               :start       #{:pause-app}
+               :stop        #{:resume-app}}
+              {:name        "partition"
+               :color       "#A0C8E9"
+               :start       #{:start-partition}
+               :stop        #{:stop-partition}}
+              {:name        "clock"
+               :color       "#A0E9DB"
+               :start       #{:strobe-clock :bump-clock}
+               :stop        #{:reset-clock}
+               :fs          #{:check-clock-offsets}}}})
 
 (defn test
   "Constructs a test from a map of CLI options."
@@ -43,6 +63,7 @@
             :client    (:client workload)
             :nemesis   (:nemesis nemesis)
             :generator gen
+            :plot       plot-spec
             :checker    (checker/compose
                           {:perf        (checker/perf)
                            :clock-skew  (checker/clock-plot)
