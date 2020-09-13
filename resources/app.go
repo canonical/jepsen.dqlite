@@ -22,7 +22,7 @@ import (
 
 const (
 	port   = 8080 // This is the API port, the internal dqlite port+1
-	schema = "CREATE TABLE IF NOT EXISTS test_set (val INT)"
+	schema = "CREATE TABLE IF NOT EXISTS model (key INT, value INT)"
 )
 
 func dqliteLog(l client.LogLevel, format string, a ...interface{}) {
@@ -50,8 +50,26 @@ func preceedingAddresses(node string, nodes []string) []string {
 	return preceeding
 }
 
+func withTx(db *sql.DB, f func(tx *sql.Tx) error) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	if err := f(tx); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func setGet(ctx context.Context, db *sql.DB) (string, error) {
-	rows, err := db.QueryContext(ctx, "SELECT val FROM test_set")
+	rows, err := db.QueryContext(ctx, "SELECT value FROM model")
 	if err != nil {
 		return "", err
 	}
@@ -75,10 +93,89 @@ func setGet(ctx context.Context, db *sql.DB) (string, error) {
 }
 
 func setPost(ctx context.Context, db *sql.DB, value string) (string, error) {
-	if _, err := db.ExecContext(ctx, "INSERT INTO test_set(val) VALUES(?)", value); err != nil {
+	if _, err := db.ExecContext(ctx, "INSERT INTO model(value) VALUES(?)", value); err != nil {
 		return "", err
 	}
 	return value, nil
+}
+
+func appendPost(ctx context.Context, db *sql.DB, value string) (string, error) {
+	result := "["
+
+	err := withTx(db, func(tx *sql.Tx) error {
+		if value[0] != '[' || value[len(value)-1] != ']' {
+			return fmt.Errorf("bad request")
+		}
+
+		value = value[1 : len(value)-1]
+		for {
+			if value[0] != '[' {
+				return fmt.Errorf("bad request")
+			}
+			value = value[1:]
+			i := strings.Index(value, "]")
+			if i == -1 {
+				return fmt.Errorf("bad request")
+			}
+			op := strings.Split(value[:i], " ")
+			if len(op) != 3 {
+				return fmt.Errorf("bad request")
+			}
+
+			switch op[0] {
+			case ":r":
+				values := []int{}
+				if op[2] != "nil" {
+					return fmt.Errorf("bad request")
+				}
+
+				rows, err := tx.QueryContext(ctx, "SELECT value FROM model WHERE key=?", op[1])
+				if err != nil {
+					return err
+				}
+				defer rows.Close()
+
+				for i := 0; rows.Next(); i++ {
+					var val int
+					err := rows.Scan(&val)
+					if err != nil {
+						return err
+					}
+					values = append(values, val)
+				}
+				err = rows.Err()
+				if err != nil {
+					return err
+				}
+
+				result += fmt.Sprintf("[:r %s %v]", op[1], values)
+			case ":append":
+				if _, err := tx.ExecContext(
+					ctx, "INSERT INTO model(key, value) VALUES(?, ?)",
+					op[1], op[2]); err != nil {
+					return err
+				}
+				result += fmt.Sprintf("[:append %s %s]", op[1], op[2])
+			default:
+				return fmt.Errorf("bad request")
+			}
+
+			if i == len(value)-1 {
+				result += "]"
+				break
+			}
+
+			value = value[i+2:]
+			result += " "
+		}
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return result, nil
 }
 
 func leaderGet(ctx context.Context, app *app.App) (string, error) {
@@ -180,6 +277,12 @@ func main() {
 			case "POST":
 				value, _ := ioutil.ReadAll(r.Body)
 				result, err = setPost(ctx, db, string(value))
+			}
+		case "/append":
+			switch r.Method {
+			case "POST":
+				value, _ := ioutil.ReadAll(r.Body)
+				result, err = appendPost(ctx, db, string(value))
 			}
 		case "/leader":
 			switch r.Method {

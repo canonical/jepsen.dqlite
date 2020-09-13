@@ -19,8 +19,17 @@ To run a single test, try
 lein run test --workload sets --nemesis kill --time-limit 60 --test-count 1 --concurrency 2n
 ```
 
+To run the full suite, use
+
+```
+lein run test-all
+```
+
+See `lein run test --help` and `lein run test-all --help` for options.
+
 #### Workloads
 
++ **append** Checks for dependency cycles in append/read transactions
 + **set** concurrent unique appends to a single table
 
 #### Nemeses

@@ -4,19 +4,23 @@
   (:require [clojure.tools.logging :refer :all]
             [clojure.string :as str]
             [jepsen [checker :as checker]
-                    [cli :as jc]
+                    [cli :as cli]
                     [generator :as gen]
                     [tests :as tests]]
             [jepsen.checker.timeline :as timeline]
             [jepsen.os.ubuntu :as ubuntu]
             [jepsen.dqlite [db :as db]
                            [set :as set]
+                           [append :as append]
                            [nemesis :as nemesis]]))
 
 (def workloads
   "A map of workload names to functions that can take CLI opts and construct
   workloads."
-  {:set             set/workload})
+  {:append append/workload
+   :none   (fn [_] tests/noop-test)
+   :set    set/workload})
+   
 
 (defn test
   "Constructs a test from a map of CLI options."
@@ -96,16 +100,51 @@
   "CLI options for running a single test"
   [["-w" "--workload NAME" "Test workload to run"
     :parse-fn keyword
-    :missing (str "--workload " (jc/one-of workloads))
-    :validate [workloads (jc/one-of workloads)]]])
+    :missing (str "--workload " (cli/one-of workloads))
+    :validate [workloads (cli/one-of workloads)]]])
 
+
+(def all-nemeses
+  "Combinations of nemeses for tests"
+  [[]
+   [:pause :kill :partition]])
+
+(def all-workloads
+  "A collection of workloads we run by default."
+  (remove #{:none} (keys workloads)))
+
+(def workloads-expected-to-pass
+  "A collection of workload names which we expect should actually pass."
+  all-workloads)
+
+(defn all-test-options
+  "Takes base cli options, a collection of nemeses, workloads, and a test count,
+  and constructs a sequence of test options."
+  [cli nemeses workloads]
+  (for [n nemeses, w workloads, i (range (:test-count cli))]
+    (assoc cli
+           :nemesis   n
+           :workload  w)))
+
+(defn all-tests
+  "Turns CLI options into a sequence of tests."
+  [test-fn cli]
+  (let [nemeses   (if-let [n (:nemesis cli)] [n]  all-nemeses)
+        workloads (if-let [w (:workload cli)] [w]
+                    (if (:only-workloads-expected-to-pass cli)
+                      workloads-expected-to-pass
+                      all-workloads))]
+    (->> (all-test-options cli nemeses workloads)
+         (map test-fn))))
 
 (defn -main
   "Handles command line arguments. Can either run a test, or a web server for
   browsing results."
   [& args]
-  (jc/run!
-   (merge (jc/serve-cmd)
-          (jc/single-test-cmd {:test-fn test
-                               :opt-spec (concat cli-opts single-test-opts)}))
+  (cli/run!
+   (merge (cli/serve-cmd)
+          (cli/single-test-cmd {:test-fn test
+                                :opt-spec (concat cli-opts single-test-opts)})
+          (cli/test-all-cmd {:tests-fn (partial all-tests test)
+                             :opt-spec cli-opts}))
    args))

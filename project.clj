@@ -7,4 +7,6 @@
                  [jepsen "0.2.1-SNAPSHOT"]
                  [clj-http "3.10.1"]]
   :main jepsen.dqlite
+  :jvm-opts ["-Djava.awt.headless=true"
+             "-server"]
   :repl-options {:init-ns jepsen.dqlite})

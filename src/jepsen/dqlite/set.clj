@@ -3,18 +3,14 @@
             [jepsen [client :as client]
                     [checker :as checker]
                     [generator :as gen]]
+            [jepsen [util :as util :refer [parse-long]]]
             [jepsen.dqlite [client :as c]])
   (:import (java.net ConnectException SocketException)))
-
-(defn parse-int
-  "Wrapper around Integer/parseInt."
-  [s]
-  (Integer/parseInt s))
 
 (defn parse-list
   "Parses a list of values. Passes through the empty string."
   [s]
-    (when-not (= s "") (map parse-int (str/split s #" "))))
+    (when-not (= s "") (map parse-long (str/split s #" "))))
 
 (defrecord Client [conn]
   client/Client
@@ -28,7 +24,7 @@
       :add (c/with-errors op
              (let [body     (str (:value op))
                    response (c/request conn "POST" "/set" {:body body})
-                   value    (parse-int response)]
+                   value    (parse-long response)]
                (assoc op :type :ok, :value value)))
       :read (c/with-errors op
               (let [response (c/request conn "GET" "/set")
@@ -42,9 +38,7 @@
 (defn w
   []
   (->> (range)
-       (map (fn [x] {:type :invoke, :f :add, :value x}))
-       ;(gen/seq)
-       ))
+       (map (fn [x] {:type :invoke, :f :add, :value x}))))
 
 (defn r
   []
