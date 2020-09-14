@@ -10,6 +10,7 @@
             [jepsen.checker.timeline :as timeline]
             [jepsen.os.ubuntu :as ubuntu]
             [jepsen.dqlite [db :as db]
+                           [bank :as bank]
                            [set :as set]
                            [append :as append]
                            [nemesis :as nemesis]]))
@@ -18,6 +19,7 @@
   "A map of workload names to functions that can take CLI opts and construct
   workloads."
   {:append append/workload
+   :bank   bank/workload
    :none   (fn [_] tests/noop-test)
    :set    set/workload})
    
@@ -26,7 +28,7 @@
   "Constructs a test from a map of CLI options."
   [opts]
   (let [workload-name (:workload opts)
-        workload      ((workloads workload-name) opts)
+        workload      ((get workloads (:workload opts)) opts)
         db            (db/db)
         nemesis       (nemesis/nemesis-package
                         {:db        db
@@ -38,6 +40,7 @@
                          :interval  (:nemesis-interval opts)})]
     (merge tests/noop-test
            opts
+           bank/options
            {:name      (str "dqlite-" (name workload-name))
             :pure-generators true
             :os        ubuntu/os

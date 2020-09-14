@@ -23,12 +23,10 @@
     (case (:f op)
       :add (c/with-errors op
              (let [body     (str (:value op))
-                   response (c/request conn "POST" "/set" {:body body})
-                   value    (parse-long response)]
+                   value    (c/request conn "POST" "/set" {:body body})]
                (assoc op :type :ok, :value value)))
       :read (c/with-errors op
-              (let [response (c/request conn "GET" "/set")
-                    value    (parse-list response)]
+              (let [value (c/request conn "GET" "/set")]
                 (assoc op :type :ok, :value value)))))
 
   (teardown! [_ test])

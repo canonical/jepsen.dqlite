@@ -14,9 +14,9 @@
 
   (invoke! [_ test op]
     (c/with-errors op
-      (let [body     (str (:value op))
-            response (c/request conn "POST" "/append" {:body body})]
-        (assoc op :type :ok, :value (eval (read-string response))))))
+      (let [body  (str (:value op))
+            value (c/request conn "POST" "/append" {:body body})]
+        (assoc op :type :ok, :value value))))
 
   (teardown! [_ test])
 

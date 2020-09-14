@@ -18,24 +18,24 @@
 (defn request
   "Perform an API request"
   [conn method path & [opts]]
-  (let [result (str (:body (http/request
-                            (merge {:method method
-                                    :url (str conn path)
-                                    :socket-timeout 5000
-                                    :connection-timeout 5000}
-                                   opts))))]
-    (if (str/includes? result "Error")
-      (throw+ {:msg result})
-      result)))
+  (let [response (str (:body (http/request
+                              (merge {:method method
+                                      :url (str conn path)
+                                      :socket-timeout 5000
+                                      :connection-timeout 5000}
+                                     opts))))]
+    (if (str/includes? response "Error")
+      (throw+ {:msg response})
+      (eval (read-string response)))))
 
 (defn leader
   "Return the node name of the current Dqlite leader."
   [test node]
   (let [conn   (open test node)
-        result (request conn "GET" "/leader")]
-    (if (= "" result)
+        leader (request conn "GET" "/leader")]
+    (if (= "" leader)
       (throw+ {:msg "no leader"})
-      result)))
+      leader)))
 
 (defmacro with-errors
   "Takes an operation and a body; evals body, turning known errors into :fail
