@@ -317,6 +317,64 @@ func leaderGet(ctx context.Context, app *app.App) (string, error) {
 	return fmt.Sprintf("\"%s\")", leader), nil
 }
 
+func membersGet(ctx context.Context, app *app.App) (string, error) {
+	cli, err := app.Leader(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer cli.Close()
+
+	cluster, err := cli.Cluster(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	nodes := make([]string, len(cluster))
+	for i, node := range cluster {
+		addr := strings.Split(node.Address, ":")[0]
+		hosts, err := net.LookupAddr(addr)
+		if err != nil {
+			return "", fmt.Errorf("%q: %v", node.Address, err)
+		}
+		if len(hosts) != 1 {
+			return "", fmt.Errorf("more than one host associated with %s: %v", node.Address, hosts)
+		}
+		nodes[i] = fmt.Sprintf("\"%s\"", hosts[0])
+	}
+
+	return fmt.Sprintf("[%s]", strings.Join(nodes, " ")), nil
+}
+
+func membersDelete(ctx context.Context, app *app.App, value string) (string, error) {
+	cli, err := app.Leader(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer cli.Close()
+
+	cluster, err := cli.Cluster(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	addr, err := net.ResolveIPAddr("ip", value)
+	if err != nil {
+		return "", err
+	}
+
+	address := makeAddress(addr.IP.String(), 8081)
+	for _, node := range cluster {
+		if node.Address == address {
+			if err := cli.Remove(ctx, node.ID); err != nil {
+				return "", err
+			}
+			return "nil", nil
+		}
+	}
+
+	return "", fmt.Errorf("no node named %s", value)
+}
+
 func main() {
 	dir := flag.String("dir", "", "data directory")
 	node := flag.String("node", "", "node name")
@@ -415,6 +473,14 @@ func main() {
 			switch r.Method {
 			case "GET":
 				result, err = leaderGet(ctx, app)
+			}
+		case "/members":
+			switch r.Method {
+			case "GET":
+				result, err = membersGet(ctx, app)
+			case "DELETE":
+				value, _ := ioutil.ReadAll(r.Body)
+				result, err = membersDelete(ctx, app, string(value))
 			}
 		}
 		if err != nil {

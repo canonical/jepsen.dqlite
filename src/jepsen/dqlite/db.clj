@@ -5,13 +5,14 @@
                     [db :as db]]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
-            [jepsen.dqlite [client :as dc]]))
+            [jepsen.dqlite [client :as client]]))
 
 (def dir "/opt/dqlite")
 (def bin "app")
 (def binary (str dir "/" bin))
 (def logfile (str dir "/app.log"))
 (def pidfile (str dir "/app.pid"))
+(def data-dir (str dir "/data"))
 
 (defn setup-ppa!
   "Adds the Dqlite PPA to the APT sources"
@@ -35,11 +36,13 @@
 (defn start!
   "Start the Go dqlite test application"
   [test node]
+  (c/su
+   (c/exec "mkdir" "-p" data-dir))
   (cu/start-daemon! {:logfile logfile
                      :pidfile pidfile
-                     :chdir   dir}
+                     :chdir   data-dir}
                     binary
-                    :-dir dir
+                    :-dir data-dir
                     :-node (name node)
                     :-latency (:latency test)
                     :-cluster (str/join "," (:nodes test))))
@@ -48,6 +51,79 @@
   "Stop the Go dqlite test application"
   [test node]
   (cu/stop-daemon! binary pidfile))
+
+(defn members
+  "Fetch the cluster members from a random node (who will ask the leader)."
+  [test]
+  (client/members test (rand-nth (vec @(:members test)))))
+
+(defn refresh-members!
+  "Takes a test and updates the current cluster membership, based on querying
+  the test's cluster leader."
+  [test]
+  (let [members (members test)]
+    (info "Current membership is" (pr-str members))
+    (reset! (:members test) (set members))))
+
+(defn addable-nodes
+  "What nodes could we add to this cluster?"
+  [test]
+  (remove @(:members test) (:nodes test)))
+
+(defn wipe!
+  "Wipes data files on the current node."
+  [node]
+  (c/su
+    (c/exec :rm :-rf data-dir)))
+
+(defn grow!
+  "Adds a random node from the test to the cluster, if possible. Refreshes
+  membership."
+  [test]
+  ; First, get a picture of who the nodes THINK is in the cluster
+  (refresh-members! test)
+
+  ; Can we add a node?
+  (if-let [addable-nodes (seq (addable-nodes test))]
+    (let [new-node (rand-nth addable-nodes)]
+      (info :adding new-node)
+
+      ; Update the test map to include the new node
+      (swap! (:members test) conj new-node)
+
+      ; Start the new node--it'll add itself to the cluster
+      (c/on-nodes test [new-node] (partial db/start! (:db test)))
+
+      new-node)
+
+    :no-nodes-available-to-add))
+
+(defn shrink!
+  "Removes a random node from the cluster, if possible. Refreshes membership."
+  [test]
+  ; First, get a picture of who the nodes THINK is in the cluster
+  (refresh-members! test)
+  ; Next, remove a node.
+  (if (< (count @(:members test)) 2)
+    :too-few-members-to-shrink
+
+    (let [node (rand-nth (vec @(:members test)))]
+      ; Ask cluster to remove it
+      (let [contact (-> test :members deref (disj node) vec rand-nth)]
+        (info :removing node :via contact)
+        (client/remove-member! test contact node))
+
+      ; Kill the node and wipe its data dir; otherwise we'll break the cluster
+      ; when it restarts
+      (c/on-nodes test [node]
+                  (fn [test node]
+                    (db/kill! (:db test) test node)
+                    (info "Wiping" node)
+                    (wipe! node)))
+
+      ; Record that the node's gone
+      (swap! (:members test) disj node)
+      node)))
 
 (defn db
   "Dqlite test application"
@@ -84,6 +160,6 @@
     db/Primary
     (setup-primary! [db test node])
     (primaries [db test]
-      (list (dc/leader test (rand-nth (:nodes test)))))
+      (list (client/leader test (rand-nth (:nodes test)))))
 
   ))

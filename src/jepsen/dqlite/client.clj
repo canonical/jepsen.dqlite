@@ -31,11 +31,24 @@
 (defn leader
   "Return the node name of the current Dqlite leader."
   [test node]
-  (let [conn   (open test node)
+  (let [conn (open test node)
         leader (request conn "GET" "/leader")]
     (if (= "" leader)
       (throw+ {:msg "no leader"})
       leader)))
+
+(defn members
+  "Return the names of the current cluster members."
+  [test node]
+  (let [conn (open test node)]
+    (request conn "GET" "/members")))
+
+(defn remove-member!
+  "Remove a cluster member."
+  [test node old-node]
+  (let [conn (open test node)
+        body (str old-node)]
+    (request conn "DELETE" "/members" {:body body})))
 
 (defmacro with-errors
   "Takes an operation and a body; evals body, turning known errors into :fail

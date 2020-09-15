@@ -43,6 +43,7 @@
            bank/options
            {:name      (str "dqlite-" (name workload-name))
             :pure-generators true
+            :members   (atom (into (sorted-set) (:nodes opts)))
             :os        ubuntu/os
             :db        db
             :checker    (checker/compose
@@ -68,7 +69,7 @@
 (def special-nemeses
   "A map of special nemesis names to collections of faults"
   {:none []
-   :all  [:pause :kill :partition :clock]})
+   :all  [:pause :kill :partition :member]})
 
 (defn parse-nemesis-spec
   "Takes a comma-separated nemesis string and returns a collection of keyword
@@ -85,8 +86,8 @@
 
    [nil "--nemesis FAULTS" "A comma-separated list of nemesis faults to enable"
      :parse-fn parse-nemesis-spec
-     :validate [(partial every? #{:pause :kill :partition :clock :member})
-                "Faults must be pause, kill, partition, clock, or member, or the special faults all or none."]]
+     :validate [(partial every? #{:pause :kill :partition :member})
+                "Faults must be pause, kill, partition, or member, or the special faults all or none."]]
 
    [nil "--nemesis-interval SECS" "Roughly how long between nemesis operations."
     :default 5
@@ -114,7 +115,7 @@
 (def all-nemeses
   "Combinations of nemeses for tests"
   [[]
-   [:pause :kill :partition]])
+   [:pause :kill :partition :member]])
 
 (def all-workloads
   "A collection of workloads we run by default."
