@@ -332,15 +332,19 @@ func main() {
 	log.Printf("starting %q with IP %q and cluster %q", *node, addr.IP.String(), *cluster)
 
 	nodes := strings.Split(*cluster, ",")
-
-	// Spawn the dqlite server thread.
-	app, err := app.New(*dir,
+	options := []app.Option{
 		app.WithAddress(makeAddress(addr.IP.String(), port+1)),
 		app.WithCluster(preceedingAddresses(*node, nodes)),
 		app.WithLogFunc(dqliteLog),
-		app.WithNetworkLatency(5*time.Millisecond),
-		app.WithVoters(len(nodes)),
-	)
+		app.WithNetworkLatency(5 * time.Millisecond),
+	}
+
+	if n := len(nodes); n > 1 {
+		options = append(options, app.WithVoters(n))
+	}
+
+	// Spawn the dqlite server thread.
+	app, err := app.New(*dir, options...)
 	if err != nil {
 		log.Fatalf("create app: %v", err)
 	}

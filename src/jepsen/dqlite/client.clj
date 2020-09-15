@@ -48,6 +48,8 @@
            (assoc ~op :type :info, :error :timeout))
          (catch [:msg "Error: failed to create dqlite connection: no available dqlite leader server found"] e#
            (assoc ~op :type :fail, :error :unavailable))
+         (catch [:msg "Error: driver: bad connection"] e#
+           (assoc ~op :type :info, :error :bad-connection))
          (catch SocketTimeoutException e#
            (assoc ~op :type :info, :error :connection-timeout))
          (catch SocketException e#
