@@ -321,6 +321,7 @@ func main() {
 	dir := flag.String("dir", "", "data directory")
 	node := flag.String("node", "", "node name")
 	cluster := flag.String("cluster", "", "names of all nodes in the cluster")
+	latency := flag.Int("latency", 5, "average one-way network latency, in msecs")
 
 	flag.Parse()
 
@@ -336,7 +337,7 @@ func main() {
 		app.WithAddress(makeAddress(addr.IP.String(), port+1)),
 		app.WithCluster(preceedingAddresses(*node, nodes)),
 		app.WithLogFunc(dqliteLog),
-		app.WithNetworkLatency(5 * time.Millisecond),
+		app.WithNetworkLatency(time.Duration(*latency) * time.Millisecond),
 	}
 
 	if n := len(nodes); n > 1 {

@@ -41,6 +41,7 @@
                     binary
                     :-dir dir
                     :-node (name node)
+                    :-latency (:latency test)
                     :-cluster (str/join "," (:nodes test))))
 
 (defn stop!
