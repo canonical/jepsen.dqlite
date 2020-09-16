@@ -375,6 +375,31 @@ func membersDelete(ctx context.Context, app *app.App, value string) (string, err
 	return "", fmt.Errorf("no node named %s", value)
 }
 
+func readyGet(ctx context.Context, app *app.App, nodes []string) (string, error) {
+	cli, err := app.Leader(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer cli.Close()
+
+	cluster, err := cli.Cluster(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	if n := len(nodes); n != len(cluster) {
+		return "", fmt.Errorf("cluster has still only %d nodes", n)
+	}
+
+	for _, node := range cluster {
+		if node.Role != client.Voter {
+			return "", fmt.Errorf("node %s is still %s", node.Address, node.Role)
+		}
+	}
+
+	return "nil", nil
+}
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
@@ -490,6 +515,11 @@ func main() {
 			case "DELETE":
 				value, _ := ioutil.ReadAll(r.Body)
 				result, err = membersDelete(ctx, app, string(value))
+			}
+		case "/ready":
+			switch r.Method {
+			case "GET":
+				result, err = readyGet(ctx, app, nodes)
 			}
 		}
 		if err != nil {

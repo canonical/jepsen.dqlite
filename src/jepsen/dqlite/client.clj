@@ -51,6 +51,12 @@
         body (str old-node)]
     (request conn "DELETE" "/members" {:body body})))
 
+(defn ready
+  "Return whether the node is fully ready."
+  [test node]
+  (let [conn (open test node)]
+    (request conn "GET" "/ready")))
+
 (defmacro with-errors
   "Takes an operation and a body; evals body, turning known errors into :fail
   or :info ops."

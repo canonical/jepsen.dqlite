@@ -148,9 +148,9 @@
       (build!)
       (start! test node)
       ; Wait until node is ready
-      (retry 60 (fn []
+      (retry 120 (fn []
                  (Thread/sleep 1000)
-                 (client/leader test node))))
+                 (client/ready test node))))
 
     (teardown! [_ test node]
       (info "tearing down dqlite test application" (:version test))
