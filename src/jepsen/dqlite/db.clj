@@ -148,7 +148,7 @@
       (build!)
       (start! test node)
       ; Wait until node is ready
-      (retry 120 (fn []
+      (retry (:cluster-setup-timeout test) (fn []
                  (Thread/sleep 1000)
                  (client/ready test node))))
 
