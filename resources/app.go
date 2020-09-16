@@ -376,6 +376,8 @@ func membersDelete(ctx context.Context, app *app.App, value string) (string, err
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
 	dir := flag.String("dir", "", "data directory")
 	node := flag.String("node", "", "node name")
 	cluster := flag.String("cluster", "", "names of all nodes in the cluster")
@@ -412,6 +414,8 @@ func main() {
 	if err := app.Ready(context.Background()); err != nil {
 		log.Fatalf("wait app ready: %v", err)
 	}
+
+	log.Printf("app ready")
 
 	// Open the app database.
 	db, err := app.Open(context.Background(), "app")
@@ -498,6 +502,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("listen to API address: %v", err)
 	}
+
+	log.Printf("serve API requests")
+
 	go http.Serve(listener, nil)
 
 	ch := make(chan os.Signal)
@@ -506,6 +513,10 @@ func main() {
 
 	<-ch
 
+	log.Printf("received shutdown signal")
+
 	db.Close()
 	app.Close()
+
+	log.Printf("exit")
 }

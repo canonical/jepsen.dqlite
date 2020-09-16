@@ -125,6 +125,17 @@
       (swap! (:members test) disj node)
       node)))
 
+(defn retry
+  [retries f & args]
+  (let [res (try {:value (apply f args)}
+                 (catch Exception e
+                   (if (zero? retries)
+                     (throw e)
+                     {:exception e})))]
+    (if (:exception res)
+      (recur (dec retries) f args)
+      (:value res))))
+
 (defn db
   "Dqlite test application"
   []
@@ -135,7 +146,11 @@
       (debian/install [:libdqlite-dev])
       (debian/install [:golang])
       (build!)
-      (start! test node))
+      (start! test node)
+      ; Wait until node is ready
+      (retry 10 (fn []
+                 (Thread/sleep 250)
+                 (client/leader test node))))
 
     (teardown! [_ test node]
       (info "tearing down dqlite test application" (:version test))
