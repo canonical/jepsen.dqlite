@@ -17,7 +17,11 @@
   (open! [this test node]
     (assoc this :conn (c/open test node)))
 
+  (close! [_ test])
+
   (setup! [this test])
+
+  (teardown! [_ test])
 
   (invoke! [this test op]
     (case (:f op)
@@ -29,9 +33,8 @@
               (let [value (c/request conn "GET" "/set")]
                 (assoc op :type :ok, :value value)))))
 
-  (teardown! [_ test])
-
-  (close! [_ test]))
+  client/Reusable
+  (reusable? [client test]))
 
 (defn w
   []

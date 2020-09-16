@@ -15,10 +15,14 @@
   (open! [this test node]
     (assoc this :conn (c/open test node)))
 
+  (close! [_ test])
+
   (setup! [this test]
     (let [body (str options)]
       (Thread/sleep 5000) ; TODO: retry on failed connection instead
       (c/request conn "PUT" "/bank" {:body body})))
+
+  (teardown! [_ test])
 
   (invoke! [this test op]
     (case (:f op)
@@ -29,9 +33,9 @@
                   (let [body     (str (:value op))
                         value    (c/request conn "POST" "/bank" {:body body})]
                     (assoc op :type :ok)))))
-  (teardown! [_ test])
 
-  (close! [_ test]))
+  client/Reusable
+  (reusable? [client test]))
 
 (defn workload
   "A list append workload."

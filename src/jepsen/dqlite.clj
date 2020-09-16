@@ -95,7 +95,7 @@
     :validate [pos? "Must be a positive number."]]
 
    [nil "--latency MSECS" "Expected average one-way network latency between nodes."
-    :default 5
+    :default 2
     :validate [pos? "Must be a positive number."]]
 
    ["-r" "--rate HZ" "Approximate request rate, in hz"

@@ -10,7 +10,11 @@
   (open! [this test node]
     (assoc this :conn (c/open test node)))
 
+  (close! [this test])
+
   (setup! [this test])
+
+  (teardown! [_ test])
 
   (invoke! [_ test op]
     (c/with-errors op
@@ -18,9 +22,8 @@
             value (c/request conn "POST" "/append" {:body body})]
         (assoc op :type :ok, :value value))))
 
-  (teardown! [_ test])
-
-  (close! [this test]))
+  client/Reusable
+  (reusable? [client test]))
 
 (defn workload
   "A list append workload."

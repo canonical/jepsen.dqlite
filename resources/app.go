@@ -435,12 +435,17 @@ func main() {
 		log.Fatalf("create schema: %v", err)
 	}
 
+	// Request timeout. If latency is 2 milliseconds, election timeout will
+	// be 30 milliseconds, so a request timeout of 200 milliseconds should
+	// allow a few election rounds to triger.
+	timeout := 100 * time.Duration(*latency) * time.Millisecond
+
 	// Handle API requests.
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		result := ""
 		err := fmt.Errorf("bad request")
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 
 		switch r.URL.Path {

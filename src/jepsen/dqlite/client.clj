@@ -21,8 +21,9 @@
   (let [response (str (:body (http/request
                               (merge {:method method
                                       :url (str conn path)
-                                      :socket-timeout 5000
-                                      :connection-timeout 5000}
+                                      ; TODO: should look at (:latency test)
+                                      :socket-timeout 250
+                                      :connection-timeout 250}
                                      opts))))]
     (if (str/includes? response "Error")
       (throw+ {:msg response})
