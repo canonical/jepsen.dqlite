@@ -148,8 +148,8 @@
       (build!)
       (start! test node)
       ; Wait until node is ready
-      (retry 10 (fn []
-                 (Thread/sleep 250)
+      (retry 60 (fn []
+                 (Thread/sleep 1000)
                  (client/leader test node))))
 
     (teardown! [_ test node]
