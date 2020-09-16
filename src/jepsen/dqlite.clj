@@ -100,6 +100,7 @@
 
    [nil "--cluster-setup-timeout SECS" "How long to wait for the cluster to be ready."
     :default 10
+    :parse-fn read-string
     :validate [pos? "Must be a positive number."]]
 
    ["-r" "--rate HZ" "Approximate request rate, in hz"
