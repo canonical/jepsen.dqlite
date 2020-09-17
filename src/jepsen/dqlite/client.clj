@@ -14,16 +14,18 @@
   "Opens a connection to the given node. TODO: use persistent HTTP connections."
   [test node]
   {:endpoint (endpoint node)
-   :timeout (* 100 (:latency test))})
+   :request-timeout (* 100 (:latency test))})
 
 (defn request
   "Perform an API request"
   [conn method path & [opts]]
-  (let [response (str (:body (http/request
+  (let [url (str (:endpoint conn) path)
+        timeout (:request-timeout conn)
+        response (str (:body (http/request
                               (merge {:method method
-                                      :url (str (:endpoint conn) path)
-                                      :socket-timeout (:timeout conn)
-                                      :connection-timeout (:timeout conn)}
+                                      :url url
+                                      :socket-timeout timeout
+                                      :connection-timeout timeout}
                                      opts))))]
     (if (str/includes? response "Error")
       (throw+ {:msg response})
