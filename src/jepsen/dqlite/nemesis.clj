@@ -29,19 +29,12 @@
                  {:type :info, :f :shrink}])
        (gen/delay (:interval opts))))
 
-(defn member-final-generator
-  "Until the cluster is full, emit grow events."
-  [test context]
-  (when (seq (db/addable-nodes test))
-    {:type :info, :f :grow}))
-
 (defn member-package
   "A combined nemesis package for adding and removing nodes."
   [opts]
   (when ((:faults opts) :member)
     {:nemesis   (member-nemesis opts)
      :generator (member-generator opts)
-     :final-generator (gen/delay 1 member-final-generator)
      :perf      #{{:name  "grow"
                    :fs    [:grow]
                    :color "#E9A0E6"}

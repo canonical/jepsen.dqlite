@@ -13,17 +13,17 @@
 (defn open
   "Opens a connection to the given node. TODO: use persistent HTTP connections."
   [test node]
-  (endpoint node))
+  {:endpoint (endpoint node)
+   :timeout (* 100 (:latency test))})
 
 (defn request
   "Perform an API request"
   [conn method path & [opts]]
   (let [response (str (:body (http/request
                               (merge {:method method
-                                      :url (str conn path)
-                                      ; TODO: should look at (:latency test)
-                                      :socket-timeout 250
-                                      :connection-timeout 250}
+                                      :url (str (:endpoint conn) path)
+                                      :socket-timeout (:timeout conn)
+                                      :connection-timeout (:timeout conn)}
                                      opts))))]
     (if (str/includes? response "Error")
       (throw+ {:msg response})

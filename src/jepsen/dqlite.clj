@@ -95,7 +95,7 @@
     :validate [pos? "Must be a positive number."]]
 
    [nil "--latency MSECS" "Expected average one-way network latency between nodes."
-    :default 2
+    :default 10
     :validate [pos? "Must be a positive number."]]
 
    [nil "--cluster-setup-timeout SECS" "How long to wait for the cluster to be ready."
