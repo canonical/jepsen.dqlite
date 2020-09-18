@@ -387,7 +387,7 @@ func readyGet(ctx context.Context, app *app.App, nodes []string) (string, error)
 		return "", err
 	}
 
-	if n := len(nodes); n != len(cluster) {
+	if n := len(cluster); n != len(nodes) {
 		return "", fmt.Errorf("cluster has still only %d nodes", n)
 	}
 
