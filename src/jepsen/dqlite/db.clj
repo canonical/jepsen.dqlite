@@ -71,10 +71,14 @@
   (remove @(:members test) (:nodes test)))
 
 (defn wipe!
-  "Wipes data files on the current node."
+  "Wipes data files on the current node and create a 'removed' flag file to
+  indicate that the node has left the cluster and should not automatically
+  rejoin it."
   [node]
   (c/su
-    (c/exec :rm :-rf data-dir)))
+   (c/exec "rm" "-rf" data-dir)
+   (c/exec "mkdir" "-p" data-dir)
+   (c/exec "touch" (str data-dir "/removed"))))
 
 (defn grow!
   "Adds a random node from the test to the cluster, if possible. Refreshes
@@ -92,7 +96,12 @@
       (swap! (:members test) conj new-node)
 
       ; Start the new node--it'll add itself to the cluster
-      (c/on-nodes test [new-node] (partial db/start! (:db test)))
+      (c/on-nodes test [new-node]
+                  (fn [test node]
+                    (db/kill! (:db test) test node)
+                    (c/exec "mkdir" "-p" data-dir)
+                    (c/exec "touch" (str data-dir "/rejoin"))
+                    (db/start! (:db test) test node)))
 
       new-node)
 

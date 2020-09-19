@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -49,6 +50,19 @@ func preceedingAddresses(node string, nodes []string) []string {
 		break
 	}
 	return preceeding
+}
+
+// Return the dqlite addresses of all nodes different from the given one.
+func otherAddresses(node string, nodes []string) []string {
+	others := []string{}
+	for _, name := range nodes {
+		if name == node {
+			continue
+		}
+		others = append(others, makeAddress(name, port+1))
+
+	}
+	return others
 }
 
 func withTx(db *sql.DB, f func(tx *sql.Tx) error) error {
@@ -400,7 +414,22 @@ func readyGet(ctx context.Context, app *app.App, nodes []string) (string, error)
 	return "nil", nil
 }
 
+func fileExists(dir, file string) (bool, error) {
+	path := filepath.Join(dir, file)
+
+	if _, err := os.Stat(path); err != nil {
+		if !os.IsNotExist(err) {
+			return false, fmt.Errorf("check if %s exists: %w", file, err)
+		}
+		return false, nil
+	}
+
+	return true, nil
+}
 func main() {
+	removed := false
+	rejoin := false
+
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
 	dir := flag.String("dir", "", "data directory")
@@ -415,14 +444,36 @@ func main() {
 		log.Fatalf("resolve node address: %v", err)
 	}
 
+	removed, err = fileExists(*dir, "removed")
+	if err != nil {
+		log.Fatalf("check if 'removed' file exists: %v", err)
+	}
+
+	rejoin, err = fileExists(*dir, "rejoin")
+	if err != nil {
+		log.Fatalf("check if 'rejoin' file exists: %v", err)
+	}
+
 	log.Printf("starting %q with IP %q and cluster %q", *node, addr.IP.String(), *cluster)
+
+	if removed {
+		log.Printf("node was removed")
+		return
+	}
 
 	nodes := strings.Split(*cluster, ",")
 	options := []app.Option{
 		app.WithAddress(makeAddress(addr.IP.String(), port+1)),
-		app.WithCluster(preceedingAddresses(*node, nodes)),
 		app.WithLogFunc(dqliteLog),
 		app.WithNetworkLatency(time.Duration(*latency) * time.Millisecond),
+	}
+
+	// When rejoining set app.WithCluster() to the full list of existing
+	// nodes, otherwise set it only to the preceeding ones.
+	if rejoin {
+		options = append(options, app.WithCluster(otherAddresses(*node, nodes)))
+	} else {
+		options = append(options, app.WithCluster(preceedingAddresses(*node, nodes)))
 	}
 
 	if n := len(nodes); n > 1 {

@@ -37,11 +37,8 @@ See `lein run test --help` and `lein run test-all --help` for options.
 + **none** no nemesis
 + **kill** kills random Dqlite test application processes
 + **partition** network partitions
-+ **partition-half** n/2+1 splits
-+ **partition-one** isolate single nodes
-+ **partition-leader** isolate the leader
-+ **partition-ring** each node can see separate, intersecting majorities
 + **pause** process pauses
++ **member** remove or re-add a node
 
 #### Time Limit
 
