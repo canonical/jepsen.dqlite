@@ -1,8 +1,11 @@
 (ns jepsen.dqlite.client
   "Helper functions for interacting with the test Dqlite application."
-  (:require [clojure.string :as str]
+  (:require [clojure.tools.logging :refer [info warn]]
+            [clojure.string :as str]
+            [clojure.edn :as edn]
             [slingshot.slingshot :refer [try+ throw+]]
-            [clj-http.client :as http])
+            [clj-http.client :as http]
+            [jepsen.util :as util :refer [timeout]])
   (:import (java.net ConnectException SocketException SocketTimeoutException)))
 
 (defn endpoint
@@ -13,23 +16,26 @@
 (defn open
   "Opens a connection to the given node. TODO: use persistent HTTP connections."
   [test node]
-  {:endpoint (endpoint node)
+  {:endpoint        (endpoint node)
    :request-timeout (* 100 (:latency test))})
 
 (defn request
   "Perform an API request"
   [conn method path & [opts]]
   (let [url (str (:endpoint conn) path)
-        timeout (:request-timeout conn)
-        response (str (:body (http/request
-                              (merge {:method method
-                                      :url url
-                                      :socket-timeout timeout
-                                      :connection-timeout timeout}
-                                     opts))))]
-    (if (str/includes? response "Error")
-      (throw+ {:msg response})
-      (eval (read-string response)))))
+        timeout (:request-timeout conn)]
+    ;(util/timeout (* 2 timeout)
+    ;              (throw+ {:type ::no-seriously-timeout})
+       (let [response
+           (str (:body (http/request
+                          (merge {:method method
+                                  :url url
+                                  :socket-timeout timeout
+                                  :connection-timeout timeout}
+                                 opts))))]
+        (if (str/includes? response "Error")
+          (throw+ {:msg response})
+          (edn/read-string response)))))
 
 (defn leader
   "Return the node name of the current Dqlite leader."
@@ -66,15 +72,31 @@
   `(try+ ~@body
          (catch [:msg "Error: database is locked"] e#
            (assoc ~op :type :fail, :error :locked))
+         (catch [:msg "Error: sql: database is closed"] e#
+           (assoc ~op :type :fail, :error :database-closed))
+         (catch [:msg "Error: checkpoint in progress"] e#
+           (assoc ~op :type :fail, :error :checkpoint-in-progress))
+         (catch [:msg "Error: no more rows available"] e#
+           (assoc ~op :type :fail, :error :no-more-rows-available))
          (catch [:msg "Error: context deadline exceeded"] e#
            (assoc ~op :type :info, :error :timeout))
+         (catch [:msg "Error: disk I/O error"] e#
+           (assoc ~op :type :info, :error :disk-io-error))
          (catch [:msg "Error: failed to create dqlite connection: no available dqlite leader server found"] e#
            (assoc ~op :type :fail, :error :unavailable))
          (catch [:msg "Error: driver: bad connection"] e#
            (assoc ~op :type (if (= (~op :f) :read) :fail :info), :error :bad-connection))
+         (catch (and (:msg ~'%)
+                     (re-find #"receive: header: EOF" (:msg ~'%)))
+           e#
+           (assoc ~op :type :info, :error :receive-header-eof))
+         (catch [:type ::no-seriously-timeout] e#
+           (assoc ~op :type :info, :error :no-seriously-timeout))
          (catch SocketTimeoutException e#
            (assoc ~op :type (if (= (~op :f) :read) :fail :info), :error :connection-timeout))
          (catch SocketException e#
            (assoc ~op :type (if (= (~op :f) :read) :fail :info), :error :connection-error))
          (catch ConnectException e#
-           (assoc ~op :type :fail, :error :connection-refused))))
+           (assoc ~op :type :fail, :error :connection-refused))
+         (catch org.apache.http.NoHttpResponseException e#
+           (assoc ~op :type :info, :error :no-http-response))))

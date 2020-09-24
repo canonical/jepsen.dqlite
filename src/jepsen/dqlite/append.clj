@@ -28,7 +28,8 @@
 (defn workload
   "A list append workload."
   [opts]
-  (assoc (append/test {:key-count         3
-                       :max-txn-length    4
-                       :consistency-models [:serializable]})
+  (assoc (append/test {:key-count         10
+                       :max-txn-length    2
+                       :consistency-models [:serializable
+                                            :strict-serializable]})
          :client (Client. nil)))

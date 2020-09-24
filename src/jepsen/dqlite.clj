@@ -6,13 +6,15 @@
             [jepsen [checker :as checker]
                     [cli :as cli]
                     [generator :as gen]
-                    [tests :as tests]]
+                    [tests :as tests]
+                    [util :as util :refer [parse-long]]]
             [jepsen.checker.timeline :as timeline]
             [jepsen.os.ubuntu :as ubuntu]
             [jepsen.dqlite [db :as db]
                            [bank :as bank]
                            [set :as set]
                            [append :as append]
+                           [tmpfs :as tmpfs]
                            [nemesis :as nemesis]]))
 
 (def workloads
@@ -22,22 +24,36 @@
    :bank   bank/workload
    :none   (fn [_] tests/noop-test)
    :set    set/workload})
-   
+
+(defn assertion-checker
+  []
+  (reify checker/Checker
+    (check [this test history opts]
+      (if-let [crashes (db/logged-crashes test)]
+        {:valid? false
+         :crashes crashes}
+        {:valid? true}))))
 
 (defn test
   "Constructs a test from a map of CLI options."
   [opts]
   (let [workload-name (:workload opts)
         workload      ((get workloads (:workload opts)) opts)
-        db            (db/db)
+        nemesis-opts  {:faults (set (:nemesis opts))
+                       :nodes  (:nodes opts)
+                       :partition {:targets [:primaries]}
+                       :pause     {:targets [nil :one :primaries :majority :all]}
+                       :kill      {:targets [nil :one :primaries :majority :all]}
+                       :interval  (:nemesis-interval opts)
+                       :disk      {:dir     db/data-dir
+                                   :size-mb 100}}
+        tmpfs         (tmpfs/package nemesis-opts)
+        db            (db/db (:db tmpfs))
         nemesis       (nemesis/nemesis-package
-                        {:db        db
-                         :nodes     (:nodes opts)
-                         :faults    (:nemesis opts)
-                         :partition {:targets [:primaries :one :majority :majorities-ring]}
-                         :pause     {:targets [nil :one :primaries :majority :all]}
-                         :kill      {:targets [nil :one :primaries :majority :all]}
-                         :interval  (:nemesis-interval opts)})]
+                        (assoc nemesis-opts
+                               :db              db
+                               :nodes           (:nodes opts)
+                               :extra-packages  [tmpfs]))]
     (merge tests/noop-test
            opts
            bank/options
@@ -51,14 +67,17 @@
                            :clock       (checker/clock-plot)
                            :stats       (checker/stats)
                            :exceptions  (checker/unhandled-exceptions)
-                           :timeline    (timeline/html)
+                           ;:timeline    (timeline/html)
+                           :assert      (assertion-checker)
                            :workload    (:checker workload)})
             :client    (:client workload)
             :nemesis   (:nemesis nemesis)
             :generator (gen/phases
                         (->> (:generator workload)
                              (gen/stagger (/ (:rate opts)))
-                             (gen/nemesis (:generator nemesis))
+                             (gen/nemesis (gen/phases
+                                            (gen/sleep 5)
+                                            (:generator nemesis)))
                              (gen/time-limit (:time-limit opts)))
                          (gen/log "Healing cluster")
                          (gen/nemesis (:final-generator nemesis))
@@ -86,7 +105,8 @@
 
    [nil "--nemesis FAULTS" "A comma-separated list of nemesis faults to enable"
      :parse-fn parse-nemesis-spec
-     :validate [(partial every? #{:pause :kill :partition :member})
+     :validate [(partial every? #{:pause :kill :stop :disk
+                                  :partition :member :clock})
                 "Faults must be pause, kill, partition, or member, or the special faults all or none."]]
 
    [nil "--nemesis-interval SECS" "Roughly how long between nemesis operations."
@@ -96,6 +116,7 @@
 
    [nil "--latency MSECS" "Expected average one-way network latency between nodes."
     :default 10
+    :parse-fn parse-long
     :validate [pos? "Must be a positive number."]]
 
    [nil "--cluster-setup-timeout SECS" "How long to wait for the cluster to be ready."

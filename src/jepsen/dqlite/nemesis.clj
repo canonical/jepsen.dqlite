@@ -1,6 +1,8 @@
 (ns jepsen.dqlite.nemesis
   "Nemeses for Dqlite"
-  (:require [jepsen [nemesis :as n]
+  (:require [jepsen [control :as c]
+                    [nemesis :as n]
+		    [util :refer [random-nonempty-subset]]
                     [generator :as gen]]
             [jepsen.nemesis [combined :as nc]]
             [jepsen.dqlite.db :as db]))
@@ -42,11 +44,52 @@
                    :fs    [:shrink]
                    :color "#ACA0E9"}}}))
 
+(defn stop-generator
+  [opts]
+  (let [stop (fn [test _] {:type :info, :f :stop-node, :value (rand-nth (:nodes test))})
+        start (fn [test _] {:type :info, :f :start-node, :value nil})]
+    (->> (gen/mix [stop stop start])
+         (gen/stagger (:interval opts)))))
+
+(defn stop-nemesis
+  "A nemesis which responds to stop-node and start-node by politely
+  stopping and starting the dqlite process."
+  [opts]
+  (reify
+    n/Nemesis
+    (setup! [this test] this)
+
+    (invoke! [this test op]
+      (assoc op :value
+             (case (:f op)
+               :start-node (c/on-nodes test db/start!)
+               :stop-node  (c/on-nodes test [(:value op)] db/stop!))))
+
+    (teardown! [this test])
+
+    n/Reflection
+    (fs [this]
+      #{:start-node :stop-node})))
+
+(defn stop-package
+  "A nemesis package for politely stopping and restarting nodes."
+  [opts]
+  (when ((:faults opts) :stop)
+    {:nemesis         (stop-nemesis opts)
+     :generator       (stop-generator opts)
+     :final-generator {:type :info, :f :start-node, :value nil}
+     :perf            #{{:name  "stop"
+                         :start #{:stop-node}
+                         :stop  #{:start-node}
+                         :color "#86DC68"}}}))
+
 (defn nemesis-package
   "Constructs a nemesis and generators for dqlite."
   [opts]
   (let [opts (update opts :faults set)]
     (-> (nc/nemesis-packages opts)
-        (concat [(member-package opts)])
+        (concat [(member-package opts)
+                 (stop-package opts)]
+                (:extra-packages opts))
         (->> (remove nil?))
         nc/compose-packages)))

@@ -8,5 +8,8 @@
                  [clj-http "3.10.1"]]
   :main jepsen.dqlite
   :jvm-opts ["-Djava.awt.headless=true"
-             "-server"]
+             "-server"
+             ;"-XX:+PrintGCDetails"
+             ;"-verbose:gc"
+             ]
   :repl-options {:init-ns jepsen.dqlite})
