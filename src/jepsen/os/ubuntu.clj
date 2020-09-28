@@ -1,5 +1,5 @@
 (ns jepsen.os.ubuntu
-  "Common tasks for Ubuntu/CockroachDB boxes."
+  "Common tasks for Ubuntu boxes."
   (:use clojure.tools.logging)
   (:require [clojure.set :as set]
             [jepsen.util :refer [meh]]
@@ -13,7 +13,7 @@
 (def os
   (reify os/OS
     (setup! [_ test node]
-      (info node "setting up ubuntu")
+      (info node "Setting up ubuntu")
 
       (debian/setup-hostfile!)
 
@@ -24,8 +24,6 @@
        (debian/install [:apt-transport-https
                         :wget
                         :curl
-                        :man-db
-                        :faketime
                         :ntpdate
                         :unzip
                         :iptables
@@ -36,7 +34,10 @@
                         :iproute2
                         :rsyslog
                         :sudo
-                        :logrotate]))
+                        :logrotate])
+       ;; Make /opt writable by all users
+       (c/exec :mkdir "-p" "/opt")
+       (c/exec :chmod "777" "/opt"))
 
       (meh (net/heal! (:net test) test)))
 

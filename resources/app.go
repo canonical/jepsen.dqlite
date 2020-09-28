@@ -315,23 +315,17 @@ func leaderGet(ctx context.Context, app *app.App) (string, error) {
 		return "", err
 	}
 
-	// FIXME: horrible hack
-	names := map[string]string{
-		"172.31.83.238": "ec2-34-239-159-119.compute-1.amazonaws.com",
-		"172.31.87.178": "ec2-3-235-31-218.compute-1.amazonaws.com",
-		"172.31.95.30": "ec2-3-236-72-150.compute-1.amazonaws.com",
-		"172.31.83.188": "ec2-3-235-182-243.compute-1.amazonaws.com",
-		"172.31.91.202": "ec2-34-231-110-211.compute-1.amazonaws.com",
-	}
-
 	leader := ""
 	if node != nil {
-    var ok bool
 		addr := strings.Split(node.Address, ":")[0]
-		leader, ok = names[addr]
-		if !ok {
-			return "", fmt.Errorf("Unknown node")
+		hosts, err := net.LookupAddr(addr)
+		if err != nil {
+			return "", fmt.Errorf("%q: %v", node.Address, err)
 		}
+		if len(hosts) != 1 {
+			return "", fmt.Errorf("more than one host associated with %s: %v", node.Address, hosts)
+		}
+		leader = hosts[0]
 	}
 
 	return fmt.Sprintf("\"%s\")", leader), nil
@@ -472,7 +466,7 @@ func main() {
 		app.WithAddress(makeAddress(addr.IP.String(), port+1)),
 		app.WithLogFunc(dqliteLog),
 		app.WithNetworkLatency(time.Duration(*latency) * time.Millisecond),
-		app.WithRolesAdjustmentFrequency(time.Second), 
+		app.WithRolesAdjustmentFrequency(time.Second),
 	}
 
 	// When rejoining set app.WithCluster() to the full list of existing
@@ -484,7 +478,7 @@ func main() {
 	}
 
 	if n := len(nodes); n > 1 {
-  		options = append(options, app.WithVoters(n))
+		options = append(options, app.WithVoters(n))
 	}
 
 	// Spawn the dqlite server thread.

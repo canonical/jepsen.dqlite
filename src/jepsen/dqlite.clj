@@ -10,7 +10,9 @@
                     [util :as util :refer [parse-long]]]
             [jepsen.checker.timeline :as timeline]
             [jepsen.os.ubuntu :as ubuntu]
+            [jepsen.os.container :as container]
             [jepsen.dqlite [db :as db]
+                           [control :as c]
                            [bank :as bank]
                            [set :as set]
                            [append :as append]
@@ -47,43 +49,49 @@
                        :interval  (:nemesis-interval opts)
                        :disk      {:dir     db/data-dir
                                    :size-mb 100}}
+        local         (:dummy? (:ssh opts))
+        os            (if local container/os ubuntu/os)
         tmpfs         (tmpfs/package nemesis-opts)
         db            (db/db (:db tmpfs))
         nemesis       (nemesis/nemesis-package
-                        (assoc nemesis-opts
-                               :db              db
-                               :nodes           (:nodes opts)
-                               :extra-packages  [tmpfs]))]
+                       (assoc nemesis-opts
+                              :db              db
+                              :nodes           (:nodes opts)
+                              :extra-packages  [tmpfs]))]
     (merge tests/noop-test
            opts
            bank/options
            {:name      (str "dqlite-" (name workload-name))
             :pure-generators true
             :members   (atom (into (sorted-set) (:nodes opts)))
-            :os        ubuntu/os
+            :local     local
+            :remote    (if local c/shell c/ssh)
+            :os        os
             :db        db
             :checker    (checker/compose
-                          {:perf        (checker/perf {:nemeses (:perf nemesis)})
-                           :clock       (checker/clock-plot)
-                           :stats       (checker/stats)
-                           :exceptions  (checker/unhandled-exceptions)
-                           ;:timeline    (timeline/html)
-                           :assert      (assertion-checker)
-                           :workload    (:checker workload)})
+                         {:perf        (checker/perf {:nemeses (:perf nemesis)})
+                          :clock       (checker/clock-plot)
+                          :stats       (checker/stats)
+                          :exceptions  (checker/unhandled-exceptions)
+                          :assert      (assertion-checker)
+                          :workload    (:checker workload)})
             :client    (:client workload)
             :nemesis   (:nemesis nemesis)
             :generator (gen/phases
                         (->> (:generator workload)
                              (gen/stagger (/ (:rate opts)))
                              (gen/nemesis (gen/phases
-                                            (gen/sleep 5)
-                                            (:generator nemesis)))
+                                           (gen/sleep 5)
+                                           (:generator nemesis)))
                              (gen/time-limit (:time-limit opts)))
-                         (gen/log "Healing cluster")
-                         (gen/nemesis (:final-generator nemesis))
-                         (gen/log "Waiting for recovery")
-                         (gen/sleep 2)
-                         (gen/clients (:final-generator workload)))})))
+                        (gen/log "Healing cluster")
+                        (gen/nemesis (:final-generator nemesis))
+                        (gen/log "Waiting for recovery")
+                        (gen/sleep 2)
+                        (gen/clients (:final-generator workload)))
+            }
+           )
+    ))
 
 (def special-nemeses
   "A map of special nemesis names to collections of faults"
@@ -104,14 +112,14 @@
     :default "master"]
 
    [nil "--nemesis FAULTS" "A comma-separated list of nemesis faults to enable"
-     :parse-fn parse-nemesis-spec
-     :validate [(partial every? #{:pause :kill :stop :disk
-                                  :partition :member :clock})
-                "Faults must be pause, kill, partition, or member, or the special faults all or none."]]
+    :parse-fn parse-nemesis-spec
+    :validate [(partial every? #{:pause :kill :stop :disk
+                                 :partition :member :clock})
+               "Faults must be pause, kill, partition, or member, or the special faults all or none."]]
 
    [nil "--nemesis-interval SECS" "Roughly how long between nemesis operations."
     :default 5
-    :parse-fn read-string
+    :parse-fn parse-long
     :validate [pos? "Must be a positive number."]]
 
    [nil "--latency MSECS" "Expected average one-way network latency between nodes."
@@ -119,15 +127,23 @@
     :parse-fn parse-long
     :validate [pos? "Must be a positive number."]]
 
-   [nil "--cluster-setup-timeout SECS" "How long to wait for the cluster to be ready."
-    :default 10
-    :parse-fn read-string
-    :validate [pos? "Must be a positive number."]]
-
    ["-r" "--rate HZ" "Approximate request rate, in hz"
     :default 10
-    :parse-fn read-string
-    :validate [pos? "Must be a positive number."]]])
+    :parse-fn parse-long
+    :validate [pos? "Must be a positive number."]]
+
+   ["-d" "--dir DIR" "Base directory to build and run the dqlite test application."
+    :default "/opt/dqlite"]
+
+   ["-b" "--binary BINARY" "Use the given pre-built dqlite test application binary."
+    :default nil]
+
+   [nil "--cluster-setup-timeout SECS" "How long to wait for the cluster to be ready."
+    :default 10
+    :parse-fn parse-long
+    :validate [pos? "Must be a positive number."]]
+
+   ])
 
 
 (def single-test-opts

@@ -16,6 +16,11 @@
 (def pidfile (str dir "/app.pid"))
 (def data-dir (str dir "/data"))
 
+(defn node-dir
+  "Return the path of the node-specific directory."
+  [test node]
+  (str (:dir test) "/" node))
+
 (defn setup-ppa!
   "Adds the Dqlite PPA to the APT sources"
   [version]
@@ -25,21 +30,39 @@
                        version "/ubuntu focal main")]
     (debian/add-repo! "dqlite" line keyserver key)))
 
-(defn build!
-  "Build the Go dqlite test application."
-  []
-  (let [source (str dir "/app.go")]
+(defn install!
+  "Install the Go dqlite test application."
+  [test node]
+
+  ;; If we're not running in local mode, install libdqlite from the PPA.
+  (when-not (:local test)
+    (info "Installing libdqlite from PPA")
     (c/su
-     (c/exec "mkdir" "-p" dir)
-     (c/exec "chmod" "777" dir)
-     (c/upload "resources/app.go" source)
-     (c/exec "go" "get" "-tags" "libsqlite3" "github.com/canonical/go-dqlite/app")
-     (c/exec "go" "build" "-tags" "libsqlite3" "-o" binary source))))
+     (setup-ppa! (:version test))
+     (debian/install [:libdqlite0])))
+
+  ;; If we were given a pre-built binary, copy it over, otherwise build it from
+  ;; source.
+  (let [dir (node-dir test node)
+        binary (str dir "/app")]
+    (c/exec "mkdir" "-p" dir)
+    (if-let [pre-built-binary (:binary test)]
+      (c/upload pre-built-binary binary)
+      (let [source (str dir "/app.go")]
+        (info "Building test dqlite application from source")
+        (c/su (debian/install [:libdqlite-dev :golang]))
+        (c/upload "resources/app.go" source)
+        (c/exec "go" "get" "-tags" "libsqlite3" "github.com/canonical/go-dqlite/app")
+        (c/exec "go" "build" "-tags" "libsqlite3" "-o" binary source)))))
 
 (defn start!
   "Start the Go dqlite test application"
   [test node]
-  (c/su
+  (let [dir      (node-dir test node)
+        logfile  (str dir "/app.log")
+        pidfile  (str dir "/app.pid")
+        binary   (str dir "/app")
+        data-dir (str dir "/data")]
     (c/exec "mkdir" "-p" data-dir)
     (cu/start-daemon! {:logfile logfile
                        :pidfile pidfile
@@ -53,7 +76,9 @@
 (defn kill!
   "Stop the Go dqlite test application"
   [test node]
-  (c/su
+  (let [dir      (node-dir test node)
+        pidfile  (str dir "app.pid")
+        binary   (str dir "/app")]
     (cu/stop-daemon! binary pidfile)))
 
 (defn stop!
@@ -198,48 +223,49 @@
         primary-thread (atom nil)]
     (reify db/DB
       (setup! [_ test node]
-        (info "installing dqlite test application" (:version test))
+        "Install and start the test application."
+        (info "Setting up test application")
+        (install! test node)
+        (start! test node)
+        ;; Wait until node is ready
+        (retry (:cluster-setup-timeout test) (fn []
+                                               (Thread/sleep 1000)
+                                               (client/ready test node)))
+        ;; Spawn primary monitoring thread
         (c/su
-          (setup-ppa! (:version test))
-          (debian/install [:libdqlite-dev :golang])
-          (build!)
-          (when tmpfs
-            (db/setup! tmpfs test node))
-          (start! test node)
-          ; Wait until node is ready
-          (retry (:cluster-setup-timeout test) (fn []
-                                                 (Thread/sleep 1000)
-                                                 (client/ready test node))))
-        ; Spawn primary monitoring thread
-        (when (compare-and-set! primary-thread nil :mine)
-          (compare-and-set! primary-thread :mine
-                            (future
-                              (let [running? (atom true)]
-                                (while @running?
-                                  (try
-                                    (Thread/sleep 1000)
-                                    (reset! primary-cache
-                                            (primaries test))
-                                    ;(info "Primary cache now"
-                                    ;      @primary-cache)
-                                    (catch InterruptedException e
-                                      (reset! running? false))
-                                    (catch Throwable t
-                                      (warn t "Primary monitoring thread crashed")))))))))
+         (when (compare-and-set! primary-thread nil :mine)
+           (compare-and-set! primary-thread :mine
+                             (future
+                               (let [running? (atom true)]
+                                 (while @running?
+                                   (try
+                                     (Thread/sleep 1000)
+                                     (reset! primary-cache (primaries test))
+                                     (info "Primary cache now" @primary-cache)
+                                     (catch InterruptedException e
+                                       (reset! running? false))
+                                     (catch Throwable t
+                                       (warn t "Primary monitoring thread crashed")))))))))()
+        (when tmpfs
+          (db/setup! tmpfs test node))
+        )
 
       (teardown! [_ test node]
+        (info "Tearing down test application")
         (when-let [t @primary-thread]
           (future-cancel t))
-        (info "tearing down dqlite test application" (:version test))
         (kill! test node)
         (when tmpfs
           (db/teardown! tmpfs test node))
-        (c/su (c/exec :rm :-rf dir)))
+        (c/exec :rm :-rf (node-dir test node)))
 
       db/LogFiles
       (log-files [_ test node]
-        (let [tarball (str dir "/data.tar.bz2")]
-          (c/su (c/exec :tar :cjf tarball data-dir))
+        (let [dir      (node-dir test node)
+              logfile  (str dir "/app.log")
+              data-dir (str dir "/data")
+              tarball  (str dir "/data.tar.bz2")]
+          (c/exec :tar :cjf tarball data-dir)
           [logfile tarball]))
 
       db/Process
