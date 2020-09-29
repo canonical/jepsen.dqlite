@@ -426,11 +426,18 @@ func fileExists(dir, file string) (bool, error) {
 
 	return true, nil
 }
+
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
+	limit := syscall.Rlimit{Cur: 0xffffffffffffffff, Max: 0xffffffffffffffff}
+	err := syscall.Setrlimit(syscall.RLIMIT_CORE, &limit)
+	if err != nil {
+		log.Fatalf("set core limit: %v", err)
+	}
+
 	removed := false
 	rejoin := false
-
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
 	dir := flag.String("dir", "", "data directory")
 	node := flag.String("node", "", "node name")

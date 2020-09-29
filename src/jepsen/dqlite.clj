@@ -7,8 +7,7 @@
                     [cli :as cli]
                     [generator :as gen]
                     [tests :as tests]
-                    [util :as util :refer [parse-long]]]
-            [jepsen.checker.timeline :as timeline]
+                    [util :refer [parse-long]]]
             [jepsen.os.ubuntu :as ubuntu]
             [jepsen.os.container :as container]
             [jepsen.dqlite [db :as db]
@@ -24,14 +23,15 @@
   workloads."
   {:append append/workload
    :bank   bank/workload
-   :none   (fn [_] tests/noop-test)
    :set    set/workload})
 
 (defn assertion-checker
   []
   (reify checker/Checker
     (check [this test history opts]
-      (if-let [crashes (db/logged-crashes test)]
+      (if-let [crashes (merge
+                        (db/logged-assertions test)
+                        (db/core-dumps test))]
         {:valid? false
          :crashes crashes}
         {:valid? true}))))
@@ -65,7 +65,7 @@
             :pure-generators true
             :members   (atom (into (sorted-set) (:nodes opts)))
             :local     local
-            :remote    (if local c/shell c/ssh)
+            :remote    (if local c/nsenter c/ssh)
             :os        os
             :db        db
             :checker    (checker/compose
@@ -132,9 +132,6 @@
     :parse-fn parse-long
     :validate [pos? "Must be a positive number."]]
 
-   ["-d" "--dir DIR" "Base directory to build and run the dqlite test application."
-    :default "/opt/dqlite"]
-
    ["-b" "--binary BINARY" "Use the given pre-built dqlite test application binary."
     :default nil]
 
@@ -145,14 +142,12 @@
 
    ])
 
-
 (def single-test-opts
   "CLI options for running a single test"
   [["-w" "--workload NAME" "Test workload to run"
     :parse-fn keyword
     :missing (str "--workload " (cli/one-of workloads))
     :validate [workloads (cli/one-of workloads)]]])
-
 
 (def all-nemeses
   "Combinations of nemeses for tests"
@@ -161,7 +156,7 @@
 
 (def all-workloads
   "A collection of workloads we run by default."
-  (remove #{:none} (keys workloads)))
+  (keys workloads))
 
 (def workloads-expected-to-pass
   "A collection of workload names which we expect should actually pass."

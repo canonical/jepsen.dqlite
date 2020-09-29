@@ -15,11 +15,7 @@
 (def logfile (str dir "/app.log"))
 (def pidfile (str dir "/app.pid"))
 (def data-dir (str dir "/data"))
-
-(defn node-dir
-  "Return the path of the node-specific directory."
-  [test node]
-  (str (:dir test) "/" node))
+(def core-dump (str data-dir "/core"))
 
 (defn setup-ppa!
   "Adds the Dqlite PPA to the APT sources"
@@ -41,50 +37,47 @@
      (setup-ppa! (:version test))
      (debian/install [:libdqlite0])))
 
+  ;; Create the test directory.
+  (let [user (c/exec :whoami)]
+    (c/su
+     (c/exec :mkdir :-p dir)
+     (c/exec :chown user dir)))
+
   ;; If we were given a pre-built binary, copy it over, otherwise build it from
   ;; source.
-  (let [dir (node-dir test node)
-        binary (str dir "/app")]
-    (c/exec "mkdir" "-p" dir)
-    (if-let [pre-built-binary (:binary test)]
-      (c/upload pre-built-binary binary)
-      (let [source (str dir "/app.go")]
-        (info "Building test dqlite application from source")
-        (c/su (debian/install [:libdqlite-dev :golang]))
-        (c/upload "resources/app.go" source)
-        (c/exec "go" "get" "-tags" "libsqlite3" "github.com/canonical/go-dqlite/app")
-        (c/exec "go" "build" "-tags" "libsqlite3" "-o" binary source)))))
+  (if-let [pre-built-binary (:binary test)]
+    (c/upload pre-built-binary binary)
+    (let [source (str dir "/app.go")]
+      (info "Building test dqlite application from source")
+      (c/su (debian/install [:libdqlite-dev :golang]))
+      (c/upload "resources/app.go" source)
+      (c/exec "go" "get" "-tags" "libsqlite3" "github.com/canonical/go-dqlite/app")
+      (c/exec "go" "build" "-tags" "libsqlite3" "-o" binary source)))
+
+  )
 
 (defn start!
   "Start the Go dqlite test application"
   [test node]
-  (let [dir      (node-dir test node)
-        logfile  (str dir "/app.log")
-        pidfile  (str dir "/app.pid")
-        binary   (str dir "/app")
-        data-dir (str dir "/data")]
-    (c/exec "mkdir" "-p" data-dir)
-    (cu/start-daemon! {:logfile logfile
-                       :pidfile pidfile
-                       :chdir   data-dir}
-                      binary
-                      :-dir data-dir
-                      :-node (name node)
-                      :-latency (:latency test)
-                      :-cluster (str/join "," (:nodes test)))))
+  (c/exec "mkdir" "-p" data-dir)
+  (cu/start-daemon! {:logfile logfile
+                     :pidfile pidfile
+                     :chdir   data-dir}
+                    binary
+                    :-dir data-dir
+                    :-node (name node)
+                    :-latency (:latency test)
+                    :-cluster (str/join "," (:nodes test))))
 
 (defn kill!
   "Stop the Go dqlite test application"
   [test node]
-  (let [dir      (node-dir test node)
-        pidfile  (str dir "app.pid")
-        binary   (str dir "/app")]
-    (cu/stop-daemon! binary pidfile)))
+  (cu/stop-daemon! pidfile))
 
 (defn stop!
   "Stops the Go dqlite test application"
   [test node]
-  (c/su (cu/grepkill! 15 binary)))
+  (cu/grepkill! 15 binary))
 
 (defn members
   "Fetch the cluster members from a random node (who will ask the leader)."
@@ -108,29 +101,28 @@
   "Wipes data files on the current node and create a 'removed' flag file to
   indicate that the node has left the cluster and should not automatically
   rejoin it."
-  [node]
-  (c/su
-    (c/exec :rm :-rf
-            (c/lit (str data-dir "/*"))
-            (c/lit (str data-dir "/.*")))
-    (c/exec "touch" (str data-dir "/removed"))))
+  [test node]
+  (c/exec :rm :-rf
+          (c/lit (str data-dir "/*"))
+          (c/lit (str data-dir "/.*")))
+  (c/exec "touch" (str data-dir "/removed")))
 
 (defn grow!
   "Adds a random node from the test to the cluster, if possible. Refreshes
   membership."
   [test]
-  ; First, get a picture of who the nodes THINK is in the cluster
+  ;; First, get a picture of who the nodes THINK is in the cluster
   (refresh-members! test)
 
-  ; Can we add a node?
+  ;; Can we add a node?
   (if-let [addable-nodes (seq (addable-nodes test))]
     (let [new-node (rand-nth addable-nodes)]
       (info :adding new-node)
 
-      ; Update the test map to include the new node
+      ;; Update the test map to include the new node
       (swap! (:members test) conj new-node)
 
-      ; Start the new node--it'll add itself to the cluster
+      ;; Start the new node--it'll add itself to the cluster
       (c/on-nodes test [new-node]
                   (fn [test node]
                     (db/kill! (:db test) test node)
@@ -163,7 +155,7 @@
                   (fn [test node]
                     (db/kill! (:db test) test node)
                     (info "Wiping" node)
-                    (wipe! node)))
+                    (wipe! test node)))
 
       ; Record that the node's gone
       (swap! (:members test) disj node)
@@ -195,25 +187,34 @@
        (remove nil?)
        set))
 
-(def crash-pattern
-  "An egrep pattern for finding crashes in log files."
-  "Assertion|src\\/")
+(def assertion-pattern
+  "An egrep pattern for finding assertion errors in log files."
+  "Assertion|src\\/|raft_start")
 
-(defn logged-crashes
-  "Returns a collection of log lines which look like crashes, across
-  all nodes in the test."
+(defn logged-assertions
+  "Returns a collection of log lines which look like assertion errors,
+  across all nodes in the test."
   [test]
-  (let [crashes
+  (let [assertions
         (->> (c/on-many (:nodes test)
                         (try+
-                          (c/su
-                            (c/exec :egrep :-i crash-pattern
-                                    logfile))
-                          (catch [:type :jepsen.control/nonzero-exit] _
-                            nil)))
+                         (c/exec :egrep :-i assertion-pattern logfile)
+                         (catch [:type :jepsen.control/nonzero-exit] _
+                           nil)))
              (remove (comp nil? val)))]
-    (when (seq crashes)
-      (into {} crashes))))
+    (when (seq assertions)
+      (into {} assertions))))
+
+(defn core-dumps
+  "Returns a collection of nodes on which a core dump of the test
+  application occurred."
+  [test]
+  (let [dumps
+        (->> (c/on-many (:nodes test)
+                        (when (cu/exists? core-dump) "core-dump"))
+             (remove (comp nil? val)))]
+    (when (seq dumps)
+      (into {} dumps))))
 
 (defn db
   "Dqlite test application. Takes a tmpfs DB which is set up prior to setting
@@ -257,14 +258,11 @@
         (kill! test node)
         (when tmpfs
           (db/teardown! tmpfs test node))
-        (c/exec :rm :-rf (node-dir test node)))
+        (c/su (c/exec :rm :-rf dir)))
 
       db/LogFiles
       (log-files [_ test node]
-        (let [dir      (node-dir test node)
-              logfile  (str dir "/app.log")
-              data-dir (str dir "/data")
-              tarball  (str dir "/data.tar.bz2")]
+        (let [tarball  (str dir "/data.tar.bz2")]
           (c/exec :tar :cjf tarball data-dir)
           [logfile tarball]))
 
