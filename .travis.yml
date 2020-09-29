@@ -1,0 +1,29 @@
+dist: focal
+language: clojure
+
+addons:
+  apt:
+    sources:
+    - sourceline: 'ppa:dqlite/master'
+    packages:
+    - libsqlite3-dev
+    - libuv1-dev
+    - libraft-dev
+    - libdqlite-dev
+    - golang
+    - gnuplot
+
+script:
+    - set -e
+    - go get -tags libsqlite3 github.com/canonical/go-dqlite/app
+    - go build -tags libsqlite3 -o resources/app resources/app.go
+    - sudo ./resources/bridge.sh setup 5
+    - >
+      lein run test
+      --no-ssh
+      --binary $(pwd)/resources/app
+      --workload append
+      --time-limit 180
+      --nemesis partition,kill,stop
+      --rate 100
+    - sudo ./resources/bridge.sh teardown 5
