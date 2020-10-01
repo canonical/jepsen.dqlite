@@ -68,4 +68,7 @@
     (teardown! [_ test node]
       (info "Tearing down container")
       (let [pid (get @containers node)]
-        (when-not (= pid "") (exec :sudo :kill :-9 pid))))))
+        (when-not (= pid "")
+          (meh (exec :sudo :kill :-9 pid))
+          ;; TODO: find a better way to wait for kernel to clean up everything.
+          (Thread/sleep 1000))))))
