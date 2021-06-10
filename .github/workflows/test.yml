@@ -1,0 +1,39 @@
+name: Dqlite Jepsen tests
+on:
+  - push
+  - pull_request
+
+jobs:
+  test:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+
+    - name: Install Java
+      uses: actions/setup-java@v1
+      with:
+        java-version: 1.8
+
+    - name: Install clojure tools
+      uses: DeLaGuardo/setup-clojure@3.4
+      with:
+        lein: 'latest'
+
+    - name: Setup dependencies
+      run: |
+        sudo add-apt-repository ppa:dqlite/master -y
+        sudo apt update
+        sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libraft-dev libdqlite-dev
+
+    - name: Test
+      run: |
+        set -e
+        go get -tags libsqlite3 github.com/canonical/go-dqlite/app
+        go build -tags libsqlite3 -o resources/app resources/app.go
+        sudo ./resources/bridge.sh setup 5
+        lein run test --no-ssh --binary $(pwd)/resources/app --workload append --time-limit 180 --nemesis partition,kill,stop --rate 100
+        sudo ./resources/bridge.sh teardown 5
