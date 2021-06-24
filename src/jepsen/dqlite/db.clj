@@ -263,7 +263,9 @@
       db/LogFiles
       (log-files [_ test node]
         (let [tarball  (str dir "/data.tar.bz2")]
-          (c/exec :tar :cjf tarball data-dir)
+          (try
+            (c/exec :tar :cjf tarball data-dir)
+            (catch Exception e (str "caught exception: " (.getMessage e))))
           [logfile tarball]))
 
       db/Process
