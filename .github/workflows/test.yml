@@ -23,6 +23,8 @@ jobs:
         sudo ufw disable
 
     - name: Test
+      env:
+        CGO_LDFLAGS_ALLOW: "-Wl,-z,now"
       run: |
         go get -tags libsqlite3 github.com/canonical/go-dqlite/app
         go build -tags libsqlite3 -o resources/app resources/app.go
