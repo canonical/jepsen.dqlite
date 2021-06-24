@@ -36,4 +36,4 @@ jobs:
       if: failure()
       with:
         name: jepsen-data
-        path: store/current
+        path: store/dqlite*
