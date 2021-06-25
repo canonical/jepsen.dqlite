@@ -7,6 +7,18 @@ on:
 
 jobs:
   test:
+    strategy:
+      fail-fast: false
+      matrix:
+        workload:
+          - append
+          - set
+          - bank
+        nemesis:
+          - partition
+          - kill
+          - stop
+          - partition,kill,stop
     runs-on: ubuntu-20.04
     steps:
     - name: Checkout code
@@ -29,11 +41,11 @@ jobs:
         go get -tags libsqlite3 github.com/canonical/go-dqlite/app
         go build -tags libsqlite3 -o resources/app resources/app.go
         sudo ./resources/bridge.sh setup 5
-        lein run test --no-ssh --binary $(pwd)/resources/app --workload append --time-limit 180 --nemesis partition,kill,stop --rate 100
+        lein run test --no-ssh --binary $(pwd)/resources/app --workload ${{ matrix.workload }} --time-limit 180 --nemesis ${{ matrix.nemesis }} --rate 100
         sudo ./resources/bridge.sh teardown 5
 
     - uses: actions/upload-artifact@v2
       if: failure()
       with:
-        name: jepsen-data
+        name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}
         path: store/dqlite*
