@@ -37,6 +37,8 @@ jobs:
     - name: Test
       env:
         CGO_LDFLAGS_ALLOW: "-Wl,-z,now"
+        LIBRAFT_TRACE: 1
+        LIBDQLITE_TRACE: 1
       run: |
         go get -tags libsqlite3 github.com/canonical/go-dqlite/app
         go build -tags libsqlite3 -o resources/app resources/app.go
