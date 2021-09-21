@@ -32,7 +32,6 @@ jobs:
         sudo add-apt-repository ppa:dqlite/master -y
         sudo apt update
         sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libraft-dev libdqlite-dev libjna-java graphviz leiningen build-essential
-        sudo ufw disable
         sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential
 
     - name: Build raft
@@ -65,6 +64,11 @@ jobs:
         sudo ldconfig
         go get -tags libsqlite3 github.com/canonical/go-dqlite/app
         go build -tags libsqlite3 -o resources/app resources/app.go
+        sudo ufw disable
+        sudo systemctl stop ufw.service
+        sudo systemctl stop systemd-resolved.service
+        sudo sh -c 'echo nameserver 1.1.1.1 >> /etc/resolv.conf'
+        sudo iptables -w -t nat -A POSTROUTING -s 10.2.1.0/24 -d 0.0.0.0/0 -j MASQUERADE
         sudo ./resources/bridge.sh setup 5
         lein run test --no-ssh --binary $(pwd)/resources/app --workload ${{ matrix.workload }} --time-limit 180 --nemesis ${{ matrix.nemesis }} --rate 100
         sudo ./resources/bridge.sh teardown 5
