@@ -60,14 +60,20 @@
   "Start the Go dqlite test application"
   [test node]
   (c/exec "mkdir" "-p" data-dir)
-  (cu/start-daemon! {:logfile logfile
-                     :pidfile pidfile
-                     :chdir   data-dir}
-                    binary
-                    :-dir data-dir
-                    :-node (name node)
-                    :-latency (:latency test)
-                    :-cluster (str/join "," (:nodes test))))
+  (letfn [(mkenv [var-name]
+	    (if-let [var-value (System/getenv var-name)]
+	      (str var-name "=" var-value)
+	      nil))]
+    (cu/start-daemon! {:env (c/lit (str/join " " [(mkenv "LIBDQLITE_TRACE") (mkenv "LIBRAFT_TRACE")]))
+                       :logfile logfile
+                       :pidfile pidfile
+                       :chdir   data-dir}
+                      binary
+                      :-dir data-dir
+                      :-node (name node)
+                      :-latency (:latency test)
+                      :-cluster (str/join "," (:nodes test)))))
+
 
 (defn kill!
   "Stop the Go dqlite test application"

@@ -42,7 +42,7 @@
             i        (+ (.indexOf nodes node) 1)
             veth1    (str prefix "veth" i)
             veth2    (str prefix "br-veth" i)
-            addr     (str "10.1.1.1" i "/24")
+            addr     (str "10.2.1.1" i "/24")
             ppid     (exec :sudo :sh :-c unshare-command)
             pid      (str/trim (exec :ps :-o :pid= :--ppid ppid))
             user     (System/getProperty "user.name")
@@ -50,19 +50,20 @@
 
         (swap! containers assoc node pid)
 
-        ;; Set up networkin.
+        ;; Set up networking.
         (exec :sudo :ip :link :add veth1 :type :veth :peer :name veth2)
         (exec :sudo :ip :link :set veth1 :netns pid)
         (exec :sudo :nsenter :-p :-n :-m :-t pid :ip :addr :add addr :dev veth1)
         (exec :sudo :nsenter :-p :-n :-m :-t pid :ip :link :set :dev veth1 :up)
         (exec :sudo :nsenter :-p :-n :-m :-t pid :ip :link :set :dev :lo :up)
+        (exec :sudo :nsenter :-p :-n :-m :-t pid :ip :route :add :default :via "10.2.1.1")
         (exec :sudo :ip :link :set veth2 :up)
         (exec :sudo :ip :link :set veth2 :master bridge)
 
         ;; Set up /opt
         (exec :sudo :mkdir :-p node-dir)
         (exec :sudo :nsenter :-p :-n :-m :-t pid :mount :--bind node-dir "/opt"))
-      
+
       (meh (net/heal! (:net test) test)))
 
     (teardown! [_ test node]
