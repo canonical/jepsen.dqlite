@@ -33,13 +33,36 @@ jobs:
         sudo apt update
         sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libraft-dev libdqlite-dev libjna-java graphviz leiningen build-essential
         sudo ufw disable
+        sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential
+
+    - name: Build raft
+      run: |
+          git clone https://github.com/Canonical/raft.git --depth 1
+          cd raft
+          autoreconf -i
+          ./configure --enable-debug
+          make -j4
+          sudo make install
+          cd ..
+
+    - name: Build dqlite
+      run: |
+          git clone https://github.com/Canonical/dqlite.git --depth 1
+          cd dqlite
+          autoreconf -i
+          ./configure --enable-debug
+          make -j4
+          sudo make install
+          cd ..
 
     - name: Test
       env:
         CGO_LDFLAGS_ALLOW: "-Wl,-z,now"
         LIBRAFT_TRACE: 1
         LIBDQLITE_TRACE: 1
+        LD_LIBRARY_PATH: "/usr/local/lib"
       run: |
+        sudo ldconfig
         go get -tags libsqlite3 github.com/canonical/go-dqlite/app
         go build -tags libsqlite3 -o resources/app resources/app.go
         sudo ./resources/bridge.sh setup 5
