@@ -32,7 +32,7 @@ jobs:
         sudo add-apt-repository ppa:dqlite/master -y
         sudo apt update
         sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libraft-dev libdqlite-dev libjna-java graphviz leiningen build-essential
-        sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential
+        sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential ntpdate
 
     - name: Build raft
       run: |
