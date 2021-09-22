@@ -44,6 +44,8 @@
             veth2    (str prefix "br-veth" i)
             addr     (str "10.2.1.1" i "/24")
             ppid     (exec :sudo :sh :-c unshare-command)
+            ;; The call to ps is a bit racey.
+            sleep    (exec :sleep :0.2)
             pid      (str/trim (exec :ps :-o :pid= :--ppid ppid))
             user     (System/getProperty "user.name")
             node-dir (str dir "/" node)]
