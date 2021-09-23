@@ -226,7 +226,7 @@ func bankPut(ctx context.Context, db *sql.DB, value string) (string, error) {
 
 	if err != nil {
 		// TODO: retry instead.
-		if err, ok := err.(driver.Error); !ok || err.Code != driver.ErrBusy {
+		if err, ok := err.(driver.Error); !ok || (err.Code != driver.ErrBusy && err.Code != driver.ErrBusySnapshot) {
 			return "", err
 		}
 	}
