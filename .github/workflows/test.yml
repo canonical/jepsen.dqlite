@@ -31,7 +31,6 @@ jobs:
 
     - name: Setup environment
       run: |
-        sudo add-apt-repository ppa:dqlite/master -y
         sudo apt update
         sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential ntpdate
 
