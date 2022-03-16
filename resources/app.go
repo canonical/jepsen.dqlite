@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/canonical/go-dqlite"
 	"github.com/canonical/go-dqlite/app"
 	"github.com/canonical/go-dqlite/client"
 	"github.com/canonical/go-dqlite/driver"
@@ -474,6 +475,7 @@ func main() {
 		app.WithLogFunc(dqliteLog),
 		app.WithNetworkLatency(time.Duration(*latency) * time.Millisecond),
 		app.WithRolesAdjustmentFrequency(time.Second),
+		app.WithSnapshotParams(dqlite.SnapshotParams{Threshold: 8, Trailing: 1024}),
 	}
 
 	// When rejoining set app.WithCluster() to the full list of existing
