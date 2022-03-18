@@ -36,7 +36,7 @@ jobs:
 
     - name: Build raft
       run: |
-          git clone https://github.com/Canonical/raft.git --depth 1
+          git clone https://github.com/MathieuBordere/raft.git --single-branch -b async-snapshot-stream --depth 1
           cd raft
           autoreconf -i
           ./configure --enable-debug
@@ -46,7 +46,7 @@ jobs:
 
     - name: Build dqlite
       run: |
-          git clone https://github.com/Canonical/dqlite.git --depth 1
+          git clone https://github.com/MathieuBordere/dqlite.git --single-branch -b async-snapshot-stream --depth 1
           cd dqlite
           autoreconf -i
           ./configure --enable-debug
