@@ -475,7 +475,7 @@ func main() {
 		app.WithLogFunc(dqliteLog),
 		app.WithNetworkLatency(time.Duration(*latency) * time.Millisecond),
 		app.WithRolesAdjustmentFrequency(time.Second),
-		app.WithSnapshotParams(dqlite.SnapshotParams{Threshold: 8, Trailing: 1024}),
+		app.WithSnapshotParams(dqlite.SnapshotParams{Threshold: 8, Trailing: 8}),
 	}
 
 	// When rejoining set app.WithCluster() to the full list of existing
