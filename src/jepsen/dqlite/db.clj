@@ -75,11 +75,14 @@
 (defn kill!
   "Stop the Go dqlite test application"
   [test node]
+  (info "Killing node")
   (cu/stop-daemon! pidfile))
 
 (defn stop!
   "Stops the Go dqlite test application"
   [test node]
+  (info "Stopping node")
+  (c/exec :rm :-rf pidfile)
   (cu/grepkill! 15 binary))
 
 (defn members
