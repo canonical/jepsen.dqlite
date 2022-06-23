@@ -1,0 +1,78 @@
+name: Dqlite Jepsen tests
+on:
+    push:
+    pull_request:
+    schedule:
+      - cron: "0 * * * *"
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        workload:
+          - append
+          - set
+          - bank
+        nemesis:
+          - partition
+          - kill
+          - stop
+          - disk
+          - partition,kill,stop
+          - partition,kill,disk
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+
+    - name: Setup environment
+      run: |
+        sudo apt update
+        sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential ntpdate
+
+    - name: Build raft
+      run: |
+          git clone https://github.com/Canonical/raft.git --depth 1
+          cd raft
+          autoreconf -i
+          ./configure --enable-sanitize
+          make -j4
+          sudo make install
+          cd ..
+
+    - name: Build dqlite
+      run: |
+          git clone https://github.com/Canonical/dqlite.git --depth 1
+          cd dqlite
+          autoreconf -i
+          ./configure --enable-sanitize
+          make -j4
+          sudo make install
+          cd ..
+
+    - name: Test
+      env:
+        CGO_LDFLAGS_ALLOW: "-Wl,-z,now"
+        LD_LIBRARY_PATH: "/usr/local/lib"
+      run: |
+        sudo ldconfig
+        go get -tags libsqlite3 github.com/canonical/go-dqlite/app
+        go build -tags libsqlite3 -o resources/app resources/app.go
+        sudo ufw disable
+        sudo systemctl stop ufw.service
+        sudo systemctl stop systemd-resolved.service
+        sudo sh -c 'echo nameserver 1.1.1.1 >> /etc/resolv.conf'
+        sudo iptables -w -t nat -A POSTROUTING -s 10.2.1.0/24 -d 0.0.0.0/0 -j MASQUERADE
+        sudo ./resources/bridge.sh setup 5
+        lein run test --no-ssh --binary $(pwd)/resources/app --workload ${{ matrix.workload }} --time-limit 240 --nemesis ${{ matrix.nemesis }} --rate 100
+        sudo ./resources/bridge.sh teardown 5
+
+    - uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}
+        path: store/dqlite*
