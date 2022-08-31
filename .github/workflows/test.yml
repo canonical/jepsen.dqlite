@@ -19,8 +19,10 @@ jobs:
           - kill
           - stop
           - disk
+          - member
           - partition,kill,stop
           - partition,kill,disk
+          - partition,kill,member
     runs-on: ubuntu-20.04
     steps:
     - name: Checkout code
