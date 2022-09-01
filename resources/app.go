@@ -390,6 +390,65 @@ func membersDelete(ctx context.Context, app *app.App, value string) (string, err
 	return "", fmt.Errorf("no node named %s", value)
 }
 
+func rolesGet(ctx context.Context, app *app.App) (string, error) {
+	cli, err := app.Leader(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer cli.Close()
+
+	cluster, err := cli.Cluster(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	entries := make([]string, len(cluster))
+	for i, node := range cluster {
+		addr := strings.Split(node.Address, ":")[0]
+		hosts, err := net.LookupAddr(addr)
+		if err != nil {
+			return "", fmt.Errorf("%q: %v", node.Address, err)
+		}
+		if len(hosts) != 1 {
+			return "", fmt.Errorf("more than one host associated with %s: %v", node.Address, hosts)
+		}
+		entries[i] = fmt.Sprintf("\"%s\" %d", hosts[0], node.Role)
+	}
+
+	return fmt.Sprintf("{%s}", strings.Join(entries, " ")), nil
+}
+
+func rolesPost(ctx context.Context, app *app.App, value string, role client.NodeRole) (string, error) {
+	cli, err := app.Leader(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer cli.Close()
+
+	cluster, err := cli.Cluster(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	addr, err := net.ResolveIPAddr("ip", value)
+	if err != nil {
+		return "", err
+	}
+
+	address := makeAddress(addr.IP.String(), 8081)
+	for _, node := range cluster {
+		if node.Address != address {
+			continue
+		}
+		if err := cli.Assign(ctx, node.ID, role); err != nil {
+			return "", err
+		}
+		return "", nil
+	}
+
+	return "", fmt.Errorf("no node named %s", value)
+}
+
 func readyGet(ctx context.Context, app *app.App, nodes []string) (string, error) {
 	cli, err := app.Leader(ctx)
 	if err != nil {
@@ -576,6 +635,21 @@ func main() {
 			case "DELETE":
 				value, _ := ioutil.ReadAll(r.Body)
 				result, err = membersDelete(ctx, app, string(value))
+			}
+		case "/roles":
+			switch r.Method {
+			case "GET":
+				result, err = rolesGet(ctx, app)
+			case "POST":
+				body, _ := ioutil.ReadAll(r.Body)
+				split := strings.Split(string(body), "\n")
+				value := split[0]
+				role, ierr := strconv.Atoi(split[1])
+				if ierr != nil {
+					result, err = "", ierr
+					break
+				}
+				result, err = rolesPost(ctx, app, value, client.NodeRole(role))
 			}
 		case "/ready":
 			switch r.Method {
