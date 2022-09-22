@@ -109,8 +109,8 @@
   rejoin it."
   [test node]
   (c/exec :rm :-rf
-          (c/lit (str data-dir "/*"))
-          (c/lit (str data-dir "/.*")))
+          (c/lit (str data-dir)))
+  (c/exec "mkdir" "-p" data-dir)
   (c/exec "touch" (str data-dir "/removed")))
 
 (defn grow!
