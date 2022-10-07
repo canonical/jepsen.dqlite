@@ -52,25 +52,26 @@
       (c/su (debian/install [:libdqlite-dev :golang]))
       (c/upload "resources/app.go" source)
       (c/exec "go" "get" "-tags" "libsqlite3" "github.com/canonical/go-dqlite/app")
-      (c/exec "go" "build" "-tags" "libsqlite3" "-o" binary source)))
-
-  )
+      (c/exec "go" "build" "-tags" "libsqlite3" "-o" binary source))))
 
 (defn start!
   "Start the Go dqlite test application"
   [test node]
   (c/exec "mkdir" "-p" data-dir)
-    (cu/start-daemon! {:env {:LIBDQLITE_TRACE "1"
-                             :LIBRAFT_TRACE "1"}
-                       :logfile logfile
-                       :pidfile pidfile
-                       :chdir   data-dir}
-                      binary
-                      :-dir data-dir
-                      :-node (name node)
-                      :-latency (:latency test)
-                      :-cluster (str/join "," (:nodes test))))
-
+  ;; XXX this is a workaround, it seems that the pidfile gets the wrong
+  ;; permissions somehow
+  (when (cu/exists? pidfile)
+    (c/exec "chmod" "go-w" pidfile))
+  (cu/start-daemon! {:env {:LIBDQLITE_TRACE "1"
+                           :LIBRAFT_TRACE "1"}
+                     :logfile logfile
+                     :pidfile pidfile
+                     :chdir   data-dir}
+                    binary
+                    :-dir data-dir
+                    :-node (name node)
+                    :-latency (:latency test)
+                    :-cluster (str/join "," (:nodes test))))
 
 (defn kill!
   "Stop the Go dqlite test application"
@@ -82,7 +83,7 @@
   "Stops the Go dqlite test application"
   [test node]
   (info "Stopping node")
-  (c/exec :rm :-rf pidfile)
+  (c/exec :rm :-f pidfile)
   (cu/grepkill! 15 binary))
 
 (defn members
