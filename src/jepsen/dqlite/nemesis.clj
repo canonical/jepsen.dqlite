@@ -83,13 +83,36 @@
                          :stop  #{:start-node}
                          :color "#86DC68"}}}))
 
+(defn stable-nemesis
+  [opts]
+  (reify
+    n/Nemesis
+    (setup! [this test] this)
+
+    (invoke! [this test op]
+      (do (case (:f op)
+            :stable (db/stable test)
+            :health (db/health test))
+          (assoc op :value nil)))
+
+    (teardown! [this test])
+
+    n/Reflection
+    (fs [_] [:stable :health])))
+
+(defn stable-package
+  [opts]
+  {:nemesis (stable-nemesis opts)
+   :generator nil})
+
 (defn nemesis-package
   "Constructs a nemesis and generators for dqlite."
   [opts]
   (let [opts (update opts :faults set)]
     (-> (nc/nemesis-packages opts)
         (concat [(member-package opts)
-                 (stop-package opts)]
+                 (stop-package opts)
+                 (stable-package opts)]
                 (:extra-packages opts))
         (->> (remove nil?))
         nc/compose-packages)))
