@@ -96,12 +96,23 @@
                              (gen/stagger (/ (:rate opts)))
                              (gen/nemesis (gen/phases
                                            (gen/sleep 5)
-                                           (:generator nemesis)))
+                                           (:generator nemesis)
+                                           (gen/mix
+                                            [(gen/phases
+                                              (gen/log "Healing cluster to prepare for stability check")
+                                              (:final-generator nemesis)
+                                              (gen/log "Waiting for recovery before stability check")
+                                              (gen/sleep 2)
+                                              (gen/log "Checking stability of cluster roles")
+                                              {:type :info, :f :stable, :value nil})
+                                             nil])))
                              (gen/time-limit (:time-limit opts)))
                         (gen/log "Healing cluster")
                         (gen/nemesis (:final-generator nemesis))
                         (gen/log "Waiting for recovery")
                         (gen/sleep 2)
+                        (gen/log "Checking stability of cluster roles once more")
+                        (gen/nemesis {:type :info, :f :stable, :value nil})
                         (gen/clients (:final-generator workload)))
             }
            )

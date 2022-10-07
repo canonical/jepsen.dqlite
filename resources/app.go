@@ -12,10 +12,14 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
+
+	"golang.org/x/sync/semaphore"
 
 	"github.com/canonical/go-dqlite"
 	"github.com/canonical/go-dqlite/app"
@@ -82,6 +86,55 @@ func withTx(db *sql.DB, f func(tx *sql.Tx) error) error {
 	}
 
 	return nil
+}
+
+// Probe all given nodes for connectivity and metadata, then return a
+// RolesChanges object.
+//
+// Adapted from the private method of the same name in go-dqlite/app.
+func makeRolesChanges(a *app.App, nodes []client.NodeInfo, roles app.RolesConfig) app.RolesChanges {
+	state := map[client.NodeInfo]*client.NodeMetadata{}
+	for _, node := range nodes {
+		state[node] = nil
+	}
+
+	var (
+		mtx     sync.Mutex     // Protects state map
+		wg      sync.WaitGroup // Wait for all probes to finish
+		nProbes = runtime.NumCPU()
+		sem     = semaphore.NewWeighted(int64(nProbes)) // Limit number of parallel probes
+	)
+
+	for _, node := range nodes {
+		wg.Add(1)
+		// sem.Acquire will not block forever because the goroutines
+		// that release the semaphore will eventually timeout.
+		if err := sem.Acquire(context.Background(), 1); err != nil {
+			log.Printf("failed to acquire semaphore: %v", err)
+			wg.Done()
+			continue
+		}
+		go func(node client.NodeInfo) {
+			defer wg.Done()
+			defer sem.Release(1)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+
+			cli, err := client.New(ctx, node.Address, client.WithLogFunc(dqliteLog))
+			if err == nil {
+				metadata, err := cli.Describe(ctx)
+				if err == nil {
+					mtx.Lock()
+					state[node] = metadata
+					mtx.Unlock()
+				}
+				cli.Close()
+			}
+		}(node)
+	}
+
+	wg.Wait()
+	return app.RolesChanges{Config: roles, State: state}
 }
 
 func appendPost(ctx context.Context, db *sql.DB, value string) (string, error) {
@@ -415,6 +468,28 @@ func readyGet(ctx context.Context, app *app.App, nodes []string) (string, error)
 	return "nil", nil
 }
 
+func stableGet(ctx context.Context, app *app.App, nodes []string, roles app.RolesConfig) (string, error) {
+	cli, err := app.Leader(ctx)
+	if err != nil {
+		return "", err
+	}
+	cluster, err := cli.Cluster(ctx)
+	if err != nil {
+		return "", err
+	}
+	leader, err := cli.Leader(ctx)
+	if err != nil {
+		return "", err
+	}
+	changes := makeRolesChanges(app, cluster, roles)
+	role, candidates := changes.Adjust(leader.ID)
+	if role != -1 {
+		log.Printf("for jepsen: cluster roles are not yet stable" +
+			" (need role %d, candidates are %v)", role, candidates)
+	}
+	return "nil", nil
+}
+
 func fileExists(dir, file string) (bool, error) {
 	path := filepath.Join(dir, file)
 
@@ -486,25 +561,21 @@ func main() {
 		options = append(options, app.WithCluster(preceedingAddresses(*node, nodes)))
 	}
 
-	if n := len(nodes); n > 1 {
-		options = append(options, app.WithVoters(n))
-	}
-
 	// Spawn the dqlite server thread.
-	app, err := app.New(*dir, options...)
+	a, err := app.New(*dir, options...)
 	if err != nil {
 		log.Fatalf("create app: %v", err)
 	}
 
 	// Wait for the cluster to be stable (possibly joining this node).
-	if err := app.Ready(context.Background()); err != nil {
+	if err := a.Ready(context.Background()); err != nil {
 		log.Fatalf("wait app ready: %v", err)
 	}
 
 	log.Printf("app ready")
 
 	// Open the app database.
-	db, err := app.Open(context.Background(), "app")
+	db, err := a.Open(context.Background(), "app")
 	if err != nil {
 		log.Fatalf("open database: %v", err)
 	}
@@ -529,6 +600,8 @@ func main() {
 	// be 30 milliseconds, so a request timeout of 200 milliseconds should
 	// allow a few election rounds to triger.
 	timeout := 100 * time.Duration(*latency) * time.Millisecond
+
+	roles := app.RolesConfig{Voters: 3, StandBys: 3}
 
 	// Handle API requests.
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -567,20 +640,25 @@ func main() {
 		case "/leader":
 			switch r.Method {
 			case "GET":
-				result, err = leaderGet(ctx, app)
+				result, err = leaderGet(ctx, a)
 			}
 		case "/members":
 			switch r.Method {
 			case "GET":
-				result, err = membersGet(ctx, app)
+				result, err = membersGet(ctx, a)
 			case "DELETE":
 				value, _ := ioutil.ReadAll(r.Body)
-				result, err = membersDelete(ctx, app, string(value))
+				result, err = membersDelete(ctx, a, string(value))
 			}
 		case "/ready":
 			switch r.Method {
 			case "GET":
-				result, err = readyGet(ctx, app, nodes)
+				result, err = readyGet(ctx, a, nodes)
+			}
+		case "/stable":
+			switch r.Method {
+			case "GET":
+				result, err = stableGet(ctx, a, nodes, roles)
 			}
 		}
 		if err != nil {
@@ -608,10 +686,10 @@ func main() {
 
 	ctxHandover, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	app.Handover(ctxHandover)
+	a.Handover(ctxHandover)
 
 	db.Close()
-	app.Close()
+	a.Close()
 
 	log.Printf("exit")
 }

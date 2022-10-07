@@ -168,6 +168,10 @@
       (swap! (:members test) disj node)
       node)))
 
+(defn stable
+  [test]
+  (client/stable test (rand-nth (vec @(:members test)))))
+
 (defn retry
   [retries f & args]
   (let [res (try {:value (apply f args)}

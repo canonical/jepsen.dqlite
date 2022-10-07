@@ -65,6 +65,11 @@
   (let [conn (open test node)]
     (request conn "GET" "/ready")))
 
+(defn stable
+  [test node]
+  (let [conn (open test node)]
+    (request conn "GET" "/stable")))
+
 (defmacro with-errors
   "Takes an operation and a body; evals body, turning known errors into :fail
   or :info ops."
