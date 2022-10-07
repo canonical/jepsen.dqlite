@@ -20,7 +20,8 @@
                 (action :cmd)
                 (if-let [in (:in action)]
                   [:in in]
-                  [])))))
+                  []))
+         (c/throw-on-nonzero-exit))))
 
 (defn cp
   "Copy files."

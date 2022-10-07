@@ -14,8 +14,8 @@
 (def binary (str dir "/" bin))
 (def logfile (str dir "/app.log"))
 (def pidfile (str dir "/app.pid"))
+(def core-dump (str dir "/core"))
 (def data-dir (str dir "/data"))
-(def core-dump (str data-dir "/core"))
 
 (defn setup-ppa!
   "Adds the Dqlite PPA to the APT sources"
@@ -193,35 +193,6 @@
        (remove nil?)
        set))
 
-(def assertion-pattern
-  "An egrep pattern for finding assertion errors in log files."
-  "Assertion|src\\/|raft_start")
-
-(defn logged-assertions
-  "Returns a collection of log lines which look like assertion errors,
-  across all nodes in the test."
-  [test]
-  (let [assertions
-        (->> (c/on-many (:nodes test)
-                        (try+
-                         (c/exec :egrep :-i assertion-pattern logfile)
-                         (catch [:type :jepsen.control/nonzero-exit] _
-                           nil)))
-             (remove (comp nil? val)))]
-    (when (seq assertions)
-      (into {} assertions))))
-
-(defn core-dumps
-  "Returns a collection of nodes on which a core dump of the test
-  application occurred."
-  [test]
-  (let [dumps
-        (->> (c/on-many (:nodes test)
-                        (when (cu/exists? core-dump) "core-dump"))
-             (remove (comp nil? val)))]
-    (when (seq dumps)
-      (into {} dumps))))
-
 (defn db
   "Dqlite test application. Takes a tmpfs DB which is set up prior to setting
   up this DB."
@@ -268,11 +239,12 @@
 
       db/LogFiles
       (log-files [_ test node]
-        (let [tarball  (str dir "/data.tar.bz2")]
+        (let [tarball   (str dir "/data.tar.bz2")
+              core-dump (when (cu/exists? core-dump) core-dump)]
           (try
             (c/exec :tar :cjf tarball data-dir)
             (catch Exception e (str "caught exception: " (.getMessage e))))
-          [logfile tarball]))
+          (remove nil? [logfile core-dump tarball])))
 
       db/Process
       (start! [_ test node]

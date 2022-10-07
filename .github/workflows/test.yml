@@ -35,6 +35,7 @@ jobs:
       run: |
         sudo apt update
         sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential ntpdate
+        printf '/opt/dqlite/core' | sudo tee /proc/sys/kernel/core_pattern
 
     - name: Build raft
       run: |
