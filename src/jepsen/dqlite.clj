@@ -1,11 +1,13 @@
 (ns jepsen.dqlite
   (:gen-class)
   (:refer-clojure :exclude [test])
-  (:require [clojure.tools.logging :refer :all]
+  (:require [clojure.java.shell :refer [sh]]
+            [clojure.tools.logging :refer :all]
             [clojure.string :as str]
             [jepsen [checker :as checker]
                     [cli :as cli]
                     [generator :as gen]
+                    [store :as store]
                     [tests :as tests]
                     [util :refer [parse-long]]]
             [jepsen.os.ubuntu :as ubuntu]
@@ -25,16 +27,27 @@
    :bank   bank/workload
    :set    set/workload})
 
-(defn assertion-checker
+(def assertion-pattern
+  "An egrep pattern for finding assertion errors in log files."
+  "Assertion|raft_start|start-stop-daemon|for jepsen")
+
+(defn core-dump-checker
   []
   (reify checker/Checker
     (check [this test history opts]
-      (if-let [crashes (merge
-                        (db/logged-assertions test)
-                        (db/core-dumps test))]
-        {:valid? false
-         :crashes crashes}
-        {:valid? true}))))
+      (let [blips
+            (->> (:nodes test)
+                 (pmap (fn [node]
+                         (let [{:keys [exit]}
+                               (->> (store/path test node "core")
+                                    .getCanonicalPath
+                                    (sh "test" "-e"))]
+                           (when (zero? exit) (str node "/core")))))
+                 (remove nil?))]
+
+        {:valid? (empty? blips)
+         :count (count blips)
+         :blips blips}))))
 
 (defn test
   "Constructs a test from a map of CLI options."
@@ -73,7 +86,8 @@
                           :clock       (checker/clock-plot)
                           :stats       (checker/stats)
                           :exceptions  (checker/unhandled-exceptions)
-                          :assert      (assertion-checker)
+                          :assert      (checker/log-file-pattern assertion-pattern "app.log")
+                          :core-dump   (core-dump-checker)
                           :workload    (:checker workload)})
             :client    (:client workload)
             :nemesis   (:nemesis nemesis)
