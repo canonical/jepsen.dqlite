@@ -34,7 +34,7 @@ jobs:
     - name: Setup environment
       run: |
         sudo apt update
-        sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential ntpdate
+        sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential ntpdate delve
         printf '/opt/dqlite/core' | sudo tee /proc/sys/kernel/core_pattern
 
     - name: Build raft
@@ -66,14 +66,12 @@ jobs:
         go get golang.org/x/sync/semaphore
         go get -tags libsqlite3 github.com/canonical/go-dqlite/app
         go build -tags libsqlite3 -o resources/app resources/app.go
-        sudo ufw disable
-        sudo systemctl stop ufw.service
-        sudo systemctl stop systemd-resolved.service
-        sudo sh -c 'echo nameserver 1.1.1.1 >> /etc/resolv.conf'
-        sudo iptables -w -t nat -A POSTROUTING -s 10.2.1.0/24 -d 0.0.0.0/0 -j MASQUERADE
-        sudo ./resources/bridge.sh setup 5
-        lein run test --no-ssh --binary $(pwd)/resources/app --workload ${{ matrix.workload }} --time-limit 240 --nemesis ${{ matrix.nemesis }} --rate 100
-        sudo ./resources/bridge.sh teardown 5
+
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      with:
+        ## limits ssh access and adds the ssh public key for the user which triggered the workflow
+        limit-access-to-actor: false
 
     - uses: actions/upload-artifact@v2
       if: failure()
