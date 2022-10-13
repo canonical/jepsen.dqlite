@@ -16,13 +16,6 @@ jobs:
           - bank
         nemesis:
           - partition
-          - kill
-          - stop
-          - disk
-          - member
-          - partition,kill,stop
-          - partition,kill,disk
-          - partition,kill,member
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
@@ -70,19 +63,12 @@ jobs:
         go get golang.org/x/sync/semaphore
         go get -tags libsqlite3 github.com/canonical/go-dqlite/app
         go build -tags libsqlite3 -o resources/app resources/app.go
-        sudo ufw disable
-        sudo systemctl stop ufw.service
-        # Jepsen tries to stop ntpd itself so that it doesn't interfere with the time.nemesis.
-        # On Ubuntu systemd-timesyncd plays the role of ntpd, so let's stop it.
-        sudo systemctl stop systemd-timesyncd.service
-        # Make resolv.conf a real file so we can bind mount it in the namespace
-        cp /etc/resolv.conf resolv.conf.tmp
-        sudo rm /etc/resolv.conf
-        sudo mv resolv.conf.tmp /etc/resolv.conf
-        sudo iptables -w -t nat -A POSTROUTING -s 10.2.1.0/24 -d 0.0.0.0/0 -j MASQUERADE
-        sudo ./resources/network.sh setup 5
-        lein run test --no-ssh --binary $(pwd)/resources/app --workload ${{ matrix.workload }} --time-limit 240 --nemesis ${{ matrix.nemesis }} --rate 100
-        sudo ./resources/network.sh teardown 5
+
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      with:
+        ## limits ssh access and adds the ssh public key for the user which triggered the workflow
+        limit-access-to-actor: false
 
     - uses: actions/upload-artifact@v3
       if: failure()
