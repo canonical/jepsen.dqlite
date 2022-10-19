@@ -241,11 +241,12 @@
       db/LogFiles
       (log-files [_ test node]
         (let [tarball   (str dir "/data.tar.bz2")
-              core-dump (when (cu/exists? core-dump) core-dump)]
+              core-dump (when (cu/exists? core-dump) core-dump)
+              app-binary (when (cu/exists? core-dump) binary)]
           (try
             (c/exec :tar :cjf tarball data-dir)
             (catch Exception e (str "caught exception: " (.getMessage e))))
-          (remove nil? [logfile core-dump tarball])))
+          (remove nil? [logfile core-dump app-binary tarball])))
 
       db/Process
       (start! [_ test node]
