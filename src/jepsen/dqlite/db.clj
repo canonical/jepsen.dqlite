@@ -179,6 +179,17 @@
       (recur (dec retries) f args)
       (:value res))))
 
+(defn stable
+  [test]
+  (retry 5 (fn [] (client/stable test
+                                 (rand-nth (vec @(:members test)))))))
+
+(defn health
+  [test]
+  (retry 5 (fn [] (client/stable test
+                                 (rand-nth (vec @(:members test)))
+                                 :health))))
+
 (defn primaries
   "Returns the set of all primaries visible to any node in the
   cluster."

@@ -63,6 +63,7 @@ jobs:
         LD_LIBRARY_PATH: "/usr/local/lib"
       run: |
         sudo ldconfig
+        go get golang.org/x/sync/semaphore
         go get -tags libsqlite3 github.com/canonical/go-dqlite/app
         go build -tags libsqlite3 -o resources/app resources/app.go
         sudo ufw disable
