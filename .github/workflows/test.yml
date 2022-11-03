@@ -26,10 +26,10 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Install Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
 
     - name: Setup environment
       run: |
@@ -75,7 +75,7 @@ jobs:
         lein run test --no-ssh --binary $(pwd)/resources/app --workload ${{ matrix.workload }} --time-limit 240 --nemesis ${{ matrix.nemesis }} --rate 100
         sudo ./resources/bridge.sh teardown 5
 
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       if: failure()
       with:
         name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}
