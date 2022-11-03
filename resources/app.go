@@ -485,7 +485,7 @@ func stableGet(ctx context.Context, app *app.App, nodes []string, roles app.Role
 	numOnlineSpares := 0
 	numOnlineStandbys := 0
 	numOnlineVoters := 0
-	anyOffline := false
+	offlines := []client.NodeInfo{}
 	for node, meta := range changes.State {
 		if meta != nil {
 			switch node.Role {
@@ -497,10 +497,10 @@ func stableGet(ctx context.Context, app *app.App, nodes []string, roles app.Role
 				numOnlineVoters += 1
 			}
 		} else {
-			anyOffline = true
+			offlines = append(offlines, node)
 		}
 	}
-	if checkHealth && anyOffline {
+	if checkHealth && len(offlines) != 0 {
 		log.Printf("for jepsen: cluster is not healthy")
 		bad = true
 	}
@@ -516,7 +516,9 @@ func stableGet(ctx context.Context, app *app.App, nodes []string, roles app.Role
 	// Check whether the number of failure domains with at least one live voter (standby) is maximized.
 	byFailureDomain := map[uint64][]client.NodeInfo{}
 	for node, meta := range changes.State {
-		byFailureDomain[meta.FailureDomain] = append(byFailureDomain[meta.FailureDomain], node)
+		if meta != nil {
+			byFailureDomain[meta.FailureDomain] = append(byFailureDomain[meta.FailureDomain], node)
+		}
 	}
 	numDomainsWithStandby := 0
 	numDomainsWithVoter := 0
@@ -550,7 +552,7 @@ func stableGet(ctx context.Context, app *app.App, nodes []string, roles app.Role
 	}
 
 	if bad {
-		log.Printf("changes=%v byFailureDomain=%v", changes, byFailureDomain)
+		log.Printf("changes=%v offlines=%v byFailureDomain=%v", changes, offlines, byFailureDomain)
 	}
 
 	return "nil", nil
