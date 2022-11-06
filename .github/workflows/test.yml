@@ -41,6 +41,7 @@ jobs:
       run: |
           git clone https://github.com/Canonical/raft.git --depth 1
           cd raft
+          git log -n 1
           autoreconf -i
           ./configure --enable-debug
           make -j4
@@ -51,6 +52,7 @@ jobs:
       run: |
           git clone https://github.com/Canonical/dqlite.git --depth 1
           cd dqlite
+          git log -n 1
           autoreconf -i
           ./configure --enable-debug
           make -j4
