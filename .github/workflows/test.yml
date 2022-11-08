@@ -24,6 +24,7 @@ jobs:
           - partition,kill,disk
           - partition,kill,member
     runs-on: ubuntu-20.04
+    timeout-minutes: 15
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -63,6 +64,7 @@ jobs:
       env:
         CGO_LDFLAGS_ALLOW: "-Wl,-z,now"
         LD_LIBRARY_PATH: "/usr/local/lib"
+      timeout-minutes: 8
       run: |
         sudo ldconfig
         go get golang.org/x/sync/semaphore
