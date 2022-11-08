@@ -58,6 +58,7 @@ jobs:
           cd ..
 
     - name: Test
+      timeout-minutes: 1
       env:
         CGO_LDFLAGS_ALLOW: "-Wl,-z,now"
         LD_LIBRARY_PATH: "/usr/local/lib"
