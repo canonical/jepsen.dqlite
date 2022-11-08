@@ -72,7 +72,7 @@ jobs:
         timeout -k 60s 60s sh -c "sudo sh -c 'echo nameserver 1.1.1.1 >> /etc/resolv.conf'"
         timeout -k 60s 60s sh -c "sudo iptables -w -t nat -A POSTROUTING -s 10.2.1.0/24 -d 0.0.0.0/0 -j MASQUERADE"
         timeout -k 60s 60s sh -c "sudo ./resources/bridge.sh setup 5"
-        timeout -k 180s --foreground 180s lein run test --no-ssh --binary $(pwd)/resources/app --workload ${{ matrix.workload }} --time-limit 120 --nemesis ${{ matrix.nemesis }} --rate 100
+        timeout -k 300s --foreground 300s lein run test --no-ssh --binary $(pwd)/resources/app --workload ${{ matrix.workload }} --time-limit 120 --nemesis ${{ matrix.nemesis }} --rate 100
         timeout -k 60s 60s sh -c "sudo ./resources/bridge.sh teardown 5"
 
     - uses: actions/upload-artifact@v3
