@@ -635,15 +635,20 @@ func main() {
 		log.Fatalf("create app: %v", err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
 	// Wait for the cluster to be stable (possibly joining this node).
-	if err := a.Ready(context.Background()); err != nil {
+	if err := a.Ready(ctx); err != nil {
 		log.Fatalf("wait app ready: %v", err)
 	}
 
 	log.Printf("app ready")
 
 	// Open the app database.
-	db, err := a.Open(context.Background(), "app")
+	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	db, err := a.Open(ctx, "app")
 	if err != nil {
 		log.Fatalf("open database: %v", err)
 	}
