@@ -62,9 +62,15 @@
         (exec :sudo :ip :link :set veth2 :up)
         (exec :sudo :ip :link :set veth2 :master bridge)
 
+        ;; Set up /etc/resolv.conf
+        (exec :sudo :sh :-c (c/lit "echo nameserver 8.8.8.8 >> /etc/resolv.conf.tmp"))
+        (exec :sudo :sh :-c (c/lit "echo nameserver 8.8.4.4 >> /etc/resolv.conf.tmp"))
+        (exec :sudo :nsenter :-p :-n :-m :-t pid :mount :--bind "/etc/resolv.conf.tmp" "/etc/resolv.conf")
+
         ;; Set up /opt
         (exec :sudo :mkdir :-p node-dir)
         (exec :sudo :nsenter :-p :-n :-m :-t pid :mount :--bind node-dir "/opt"))
+
 
       (meh (net/heal! (:net test) test)))
 
