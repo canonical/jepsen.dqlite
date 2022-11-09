@@ -48,7 +48,8 @@
             sleep    (exec :sleep :0.2)
             pid      (str/trim (exec :ps :-o :pid= :--ppid ppid))
             user     (System/getProperty "user.name")
-            node-dir (str dir "/" node)]
+            node-dir (str dir "/" node)
+            resolv   (str node-dir "/" "resolv.conf")]
 
         (swap! containers assoc node pid)
 
@@ -62,15 +63,14 @@
         (exec :sudo :ip :link :set veth2 :up)
         (exec :sudo :ip :link :set veth2 :master bridge)
 
-        ;; Set up /etc/resolv.conf
-        (exec :sudo :sh :-c (c/lit "echo nameserver 8.8.8.8 >> /etc/resolv.conf.tmp"))
-        (exec :sudo :sh :-c (c/lit "echo nameserver 8.8.4.4 >> /etc/resolv.conf.tmp"))
-        (exec :sudo :nsenter :-p :-n :-m :-t pid :mount :--bind "/etc/resolv.conf.tmp" "/etc/resolv.conf")
-
         ;; Set up /opt
         (exec :sudo :mkdir :-p node-dir)
         (exec :sudo :nsenter :-p :-n :-m :-t pid :mount :--bind node-dir "/opt"))
 
+        ;; Set up /etc/resolv.conf
+        (exec :sudo :sh :-c (c/lit (str "echo nameserver 8.8.8.8 >> " resolv)))
+        (exec :sudo :sh :-c (c/lit (str "echo nameserver 8.8.4.4 >> " resolv)))
+        (exec :sudo :nsenter :-p :-n :-m :-t pid :mount :--bind resolv "/etc/resolv.conf")
 
       (meh (net/heal! (:net test) test)))
 
