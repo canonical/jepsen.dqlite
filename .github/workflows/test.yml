@@ -75,9 +75,9 @@ jobs:
         sudo systemctl stop systemd-resolved.service
         sudo sh -c 'echo nameserver 1.1.1.1 >> /etc/resolv.conf'
         sudo iptables -w -t nat -A POSTROUTING -s 10.2.1.0/24 -d 0.0.0.0/0 -j MASQUERADE
-        sudo ./resources/bridge.sh setup 5
+        sudo ./resources/network.sh setup 5
         lein run test --no-ssh --binary $(pwd)/resources/app --workload ${{ matrix.workload }} --time-limit 240 --nemesis ${{ matrix.nemesis }} --rate 100
-        sudo ./resources/bridge.sh teardown 5
+        sudo ./resources/network.sh teardown 5
 
     - uses: actions/upload-artifact@v3
       if: failure()
