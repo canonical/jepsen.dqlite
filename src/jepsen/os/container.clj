@@ -65,12 +65,12 @@
 
         ;; Set up /opt
         (exec :sudo :mkdir :-p node-dir)
-        (exec :sudo :nsenter :-p :-n :-m :-t pid :mount :--bind node-dir "/opt"))
+        (exec :sudo :nsenter :-p :-n :-m :-t pid :mount :--bind node-dir "/opt")
 
         ;; Set up /etc/resolv.conf
         (exec :sudo :sh :-c (c/lit (str "echo nameserver 8.8.8.8 >> " resolv)))
         (exec :sudo :sh :-c (c/lit (str "echo nameserver 8.8.4.4 >> " resolv)))
-        (exec :sudo :nsenter :-p :-n :-m :-t pid :mount :--bind resolv "/etc/resolv.conf")
+        (exec :sudo :nsenter :-p :-n :-m :-t pid :mount :--bind resolv "/etc/resolv.conf"))
 
       (meh (net/heal! (:net test) test)))
 
