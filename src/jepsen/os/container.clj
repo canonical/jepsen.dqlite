@@ -59,6 +59,7 @@
         (exec :sudo :nsenter :-p :-n :-m :-t pid :ip :link :set :dev veth1 :up)
         (exec :sudo :nsenter :-p :-n :-m :-t pid :ip :link :set :dev :lo :up)
         (exec :sudo :nsenter :-p :-n :-m :-t pid :ip :route :add :default :via "10.2.1.1")
+        (exec :sudo :nsenter :-p :-n :-m :-t pid :ip :route :add "127.0.0.53/32" :via "10.2.1.1")
         (exec :sudo :ip :link :set veth2 :up)
         (exec :sudo :ip :link :set veth2 :master bridge)
 
