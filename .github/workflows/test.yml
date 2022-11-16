@@ -24,7 +24,6 @@ jobs:
           - partition,kill,disk
           - partition,kill,member
     runs-on: ubuntu-20.04
-    timeout-minutes: 15
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
