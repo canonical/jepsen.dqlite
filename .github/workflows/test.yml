@@ -51,7 +51,7 @@ jobs:
 
     - name: Build dqlite
       run: |
-          git clone https://github.com/Canonical/dqlite.git --depth 1
+          git clone https://github.com/MathieuBordere/dqlite.git --depth 1 --single-branch --branch disk-mode-force
           cd dqlite
           git log -n 1
           autoreconf -i
