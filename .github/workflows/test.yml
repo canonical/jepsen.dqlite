@@ -40,7 +40,7 @@ jobs:
 
     - name: Build raft
       run: |
-          git clone https://github.com/Canonical/raft.git --depth 1
+          git clone https://github.com/MathieuBordere/raft.git --depth 1 --single-branch --branch issue_250/membership_rollback
           cd raft
           git log -n 1
           autoreconf -i
@@ -51,7 +51,7 @@ jobs:
 
     - name: Build dqlite
       run: |
-          git clone https://github.com/MathieuBordere/dqlite.git --depth 1 --single-branch --branch disk-mode
+          git clone https://github.com/canonical/dqlite.git --depth 1
           cd dqlite
           git log -n 1
           autoreconf -i
