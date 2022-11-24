@@ -17,7 +17,7 @@
   "Opens a connection to the given node. TODO: use persistent HTTP connections."
   [test node]
   {:endpoint        (endpoint node)
-   :request-timeout (* 100 (:latency test))})
+   :request-timeout (* 5000 (:latency test))})
 
 (defn request
   "Perform an API request"
