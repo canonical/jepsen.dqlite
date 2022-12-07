@@ -34,9 +34,21 @@ jobs:
 
     - name: Setup environment
       run: |
+        sudo apt install ubuntu-dbgsym-keyring
+        echo deb http://ddebs.ubuntu.com focal main | sudo tee /etc/apt/sources.list.d/ddebs.list
         sudo apt update
-        sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential ntpdate
+        sudo apt install -y --allow-downgrades gnuplot sqlite3=3.31.1-4 libsqlite3-0=3.31.1-4 libsqlite3-dev=3.31.1-4 libuv1=1.34.2-1ubuntu1 libuv1-dev=1.34.2-1ubuntu1 liblz4-dev libjna-java graphviz leiningen build-essential ntpdate sqlite3-dbgsym libuv1-dbgsym
         printf '/opt/dqlite/core' | sudo tee /proc/sys/kernel/core_pattern
+    - name: Install libbacktrace
+      run: |
+        git clone https://github.com/ianlancetaylor/libbacktrace --depth 1
+        cd libbacktrace
+        autoreconf -i
+        ./configure
+        make -j4
+        sudo make install
+        sudo ldconfig
+        cd ..
 
     - name: Build raft
       run: |
@@ -44,7 +56,7 @@ jobs:
           cd raft
           git log -n 1
           autoreconf -i
-          ./configure --enable-debug
+          ./configure --enable-debug --enable-backtrace
           make -j4
           sudo make install
           cd ..
@@ -55,7 +67,7 @@ jobs:
           cd dqlite
           git log -n 1
           autoreconf -i
-          ./configure --enable-debug
+          ./configure --enable-debug --enable-backtrace
           make -j4
           sudo make install
           cd ..
