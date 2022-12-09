@@ -1,11 +1,9 @@
 #!/bin/sh -e
 
 BRIDGE="jepsen-br"
-FILE="/etc/resolv.conf.jepsen"
 
 help() {
     echo "Set up and tear down network resources for inter-node communication."
-    echo "This will create a bridge and a resolv.conf file"
     echo
     echo "Usage:"
     echo
@@ -30,12 +28,6 @@ if [ "${cmd}" = "setup" ]; then
             echo "10.2.1.1${i} n${i}" >> /etc/hosts
         fi
     done
-
-    if [ ! -f "$FILE" ]; then
-        echo nameserver 8.8.8.8 >> $FILE
-        echo nameserver 8.8.4.4 >> $FILE
-    fi
-
     exit 0
 fi
 
