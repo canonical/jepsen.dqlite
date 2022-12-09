@@ -3,7 +3,6 @@
             [jepsen [client :as client]
                     [checker :as checker]
                     [generator :as gen]]
-            [jepsen [util :as util :refer [parse-long]]]
             [jepsen.dqlite [client :as c]])
   (:import (java.net ConnectException SocketException)))
 
