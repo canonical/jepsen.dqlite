@@ -52,7 +52,7 @@ jobs:
 
     - name: Build raft
       run: |
-          git clone https://github.com/Canonical/raft.git --depth 1
+          git clone https://github.com/MathieuBordere/raft.git --single-branch -b quorum --depth 1
           cd raft
           git log -n 1
           autoreconf -i
@@ -63,7 +63,7 @@ jobs:
 
     - name: Build dqlite
       run: |
-          git clone https://github.com/Canonical/dqlite.git --depth 1
+          git clone https://github.com/MathieuBordere/dqlite.git --single-branch -b quorum --depth 1
           cd dqlite
           git log -n 1
           autoreconf -i
