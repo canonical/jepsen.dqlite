@@ -14,8 +14,8 @@
 (def binary (str dir "/" bin))
 (def logfile (str dir "/app.log"))
 (def pidfile (str dir "/app.pid"))
-(def core-dump (str dir "/core"))
 (def data-dir (str dir "/data"))
+(def core-dump-glob (str data-dir "/core*"))
 
 (defn setup-ppa!
   "Adds the Dqlite PPA to the APT sources"
@@ -251,13 +251,20 @@
 
       db/LogFiles
       (log-files [_ test node]
-        (let [tarball   (str dir "/data.tar.bz2")
-              core-dump (when (cu/exists? core-dump) core-dump)
-              app-binary (when (cu/exists? core-dump) binary)]
+        (let [tarball    (str dir "/data.tar.bz2")
+              ls-cmd     (str "ls " core-dump-glob)
+              lines      (-> (try (c/exec "sh" "-c" ls-cmd)
+                               (catch Exception e ""))
+                              (str/split #"\n"))
+              core-dumps (->> lines
+                              (remove str/blank?)
+                              (into []))
+              app-binary (when (seq core-dumps) binary)
+              everything (remove nil? [logfile tarball app-binary])]
           (try
             (c/exec :tar :cjf tarball data-dir)
             (catch Exception e (str "caught exception: " (.getMessage e))))
-          (remove nil? [logfile core-dump app-binary tarball])))
+          everything))
 
       db/Process
       (start! [_ test node]

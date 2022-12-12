@@ -38,10 +38,10 @@
             (->> (:nodes test)
                  (pmap (fn [node]
                          (let [{:keys [exit]}
-                               (->> (store/path test node "core")
+                               (->> (store/path test node "app")
                                     .getCanonicalPath
                                     (sh "test" "-e"))]
-                           (when (zero? exit) (str node "/core")))))
+                           (when (zero? exit) node))))
                  (remove nil?))]
 
         {:valid? (empty? blips)
