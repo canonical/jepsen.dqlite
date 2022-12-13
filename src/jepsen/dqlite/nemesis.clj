@@ -109,7 +109,9 @@
   "Constructs a nemesis and generators for dqlite."
   [opts]
   (let [opts (update opts :faults set)]
-    (-> (nc/nemesis-packages opts)
+    (-> [(nc/partition-package opts)
+         (nc/clock-package opts)
+         (nc/db-package opts)]
         (concat [(member-package opts)
                  (stop-package opts)
                  (stable-package opts)]
