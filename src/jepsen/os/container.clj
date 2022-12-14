@@ -62,9 +62,6 @@
         (exec :sudo :ip :link :set veth2 :up)
         (exec :sudo :ip :link :set veth2 :master bridge)
 
-        ;; Set up /etc/resolv.conf
-        (exec :sudo :nsenter :-p :-n :-m :-t pid :mount :--bind "/etc/resolv.conf.jepsen" "/etc/resolv.conf")
-
         ;; Set up /opt
         (exec :sudo :mkdir :-p node-dir)
         (exec :sudo :nsenter :-p :-n :-m :-t pid :mount :--bind node-dir "/opt"))
