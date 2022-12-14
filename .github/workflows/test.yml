@@ -63,7 +63,7 @@ jobs:
 
     - name: Build dqlite
       run: |
-          git clone https://github.com/MathieuBordere/dqlite.git --single-branch -b quorum --depth 1
+          git clone https://github.com/canonical/dqlite.git --depth 1
           cd dqlite
           git log -n 1
           autoreconf -i
