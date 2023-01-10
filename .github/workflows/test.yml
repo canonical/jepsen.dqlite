@@ -52,7 +52,7 @@ jobs:
 
     - name: Build raft
       run: |
-          git clone https://github.com/Canonical/raft.git --depth 1
+          git clone https://github.com/cole-miller/raft.git --branch address-again
           cd raft
           git log -n 1
           autoreconf -i
