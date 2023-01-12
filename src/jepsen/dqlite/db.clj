@@ -57,6 +57,7 @@
 (defn start!
   "Start the Go dqlite test application"
   [test node]
+  (info "Starting node")
   (c/exec "mkdir" "-p" data-dir)
   ;; XXX this is a workaround, it seems that the pidfile gets the wrong
   ;; permissions somehow
