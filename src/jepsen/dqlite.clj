@@ -99,6 +99,8 @@
                                            {:type :info, :f :stable, :value nil}
                                            (:generator nemesis)))
                              (gen/time-limit (:time-limit opts)))
+                        ;; Allow dust to settle before healing cluster
+                        (gen/sleep 3)
                         (gen/log "Healing cluster")
                         (gen/nemesis (:final-generator nemesis))
                         (gen/log "Waiting for recovery")
