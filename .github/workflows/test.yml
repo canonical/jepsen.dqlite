@@ -63,7 +63,7 @@ jobs:
 
     - name: Build dqlite
       run: |
-          git clone https://github.com/Canonical/dqlite.git --depth 1
+          git clone https://github.com/cole-miller/dqlite.git --depth 1 --branch re-gateway
           cd dqlite
           git log -n 1
           autoreconf -i
