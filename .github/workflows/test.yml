@@ -61,7 +61,7 @@ jobs:
 
     - name: Build dqlite
       run: |
-          git clone https://github.com/Canonical/dqlite.git --depth 1
+          git clone https://github.com/cole-miller/dqlite.git --depth 1 --branch roles
           cd dqlite
           git log -n 1
           autoreconf -i
@@ -77,8 +77,9 @@ jobs:
       timeout-minutes: 8
       run: |
         sudo ldconfig
+        export GOPROXY=direct
         go get golang.org/x/sync/semaphore
-        go get -tags libsqlite3 github.com/canonical/go-dqlite/app
+        go get -tags libsqlite3 github.com/cole-miller/go-dqlite@roles
         go build -tags libsqlite3 -o resources/app resources/app.go
         sudo ufw disable
         sudo systemctl stop ufw.service

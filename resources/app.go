@@ -21,10 +21,10 @@ import (
 
 	"golang.org/x/sync/semaphore"
 
-	"github.com/canonical/go-dqlite"
-	"github.com/canonical/go-dqlite/app"
-	"github.com/canonical/go-dqlite/client"
-	"github.com/canonical/go-dqlite/driver"
+	"github.com/cole-miller/go-dqlite"
+	"github.com/cole-miller/go-dqlite/app"
+	"github.com/cole-miller/go-dqlite/client"
+	"github.com/cole-miller/go-dqlite/driver"
 )
 
 const (
@@ -619,6 +619,7 @@ func main() {
 		app.WithNetworkLatency(time.Duration(*latency) * time.Millisecond),
 		app.WithRolesAdjustmentFrequency(time.Second),
 		app.WithSnapshotParams(dqlite.SnapshotParams{Threshold: 128, Trailing: 1024}),
+		app.WithServerSideRoleManagement(true),
 	}
 
 	// When rejoining set app.WithCluster() to the full list of existing
