@@ -73,7 +73,7 @@ jobs:
         RAFT_REPO: 'https://github.com/Canonical/raft.git'
         RAFT_BRANCH: 'master'
       run: |
-          git clone --branch ${{ inputs.raftBranch || env.RAFT_BRANCH }} --single-branch --depth 1 ${{ inputs.raftRepo || env.RAFT_REPO }}
+          git clone --branch ${{ inputs.raftBranch || env.RAFT_BRANCH }} --depth 1 ${{ inputs.raftRepo || env.RAFT_REPO }}
           cd raft
           git log -n 1
           autoreconf -i
@@ -87,7 +87,7 @@ jobs:
         DQLITE_REPO: 'https://github.com/Canonical/dqlite.git'
         DQLITE_BRANCH: 'master'
       run: |
-          git clone --branch ${{ inputs.dqliteBranch || env.DQLITE_BRANCH }} --single-branch --depth 1 ${{ inputs.dqliteRepo || env.DQLITE_REPO }}
+          git clone --branch ${{ inputs.dqliteBranch || env.DQLITE_BRANCH }} --depth 1 ${{ inputs.dqliteRepo || env.DQLITE_REPO }}
           cd dqlite
           git log -n 1
           autoreconf -i
