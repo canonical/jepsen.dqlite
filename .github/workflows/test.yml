@@ -43,7 +43,7 @@ jobs:
           - partition,kill,disk
           - partition,kill,member
     runs-on: ubuntu-20.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -70,6 +70,7 @@ jobs:
       uses: actions/setup-go@v3
 
     - name: Setup environment
+      timeout-minutes: 15
       run: |
         sudo apt update
         sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential
