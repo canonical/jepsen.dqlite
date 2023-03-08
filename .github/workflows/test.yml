@@ -48,6 +48,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Cache Jepsen (lein project) dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-clojure-${{ hashFiles('**/project.clj') }}
+        restore-keys: |
+          ${{ runner.os }}-clojure
+
     - name: Install Go
       uses: actions/setup-go@v3
 
