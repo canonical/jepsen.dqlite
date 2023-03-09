@@ -1,14 +1,14 @@
 (ns jepsen.dqlite.bank
   "Implements a bank-account test, where we transfer amounts between a pool of
   accounts, and verify that reads always see a constant amount."
-  (:require [clojure.string :as str]
-            [jepsen.dqlite [client :as c]]
-            [jepsen [client :as client]]
+  (:require [jepsen.dqlite [client :as c]]
+            [jepsen [client :as client]
+                    [generator :as gen]]
             [jepsen.tests.bank :as bank]))
 
 (def options {:accounts           (vec (range 8))
-              :max-transfer       5
-              :total-amount       80})
+              :max-transfer       10
+              :total-amount       0})
 
 (defrecord Client [conn]
   client/Client
@@ -38,6 +38,12 @@
   (reusable? [client test]))
 
 (defn workload
-  "A list append workload."
-  [opts]
-  (assoc (bank/test {:negative-balances? true}) :client (Client. nil)))
+  "A bank workload."
+  [_opts]
+  (merge (bank/test {:negative-balances? true})
+         {:client (Client. nil)
+          :final-generator (gen/phases
+                            (gen/log "Final reads...")
+                            (->> (bank/read nil nil)
+                                 (gen/map #(assoc % :final? true))
+                                 (gen/each-thread)))}))
