@@ -8,7 +8,8 @@
                     [cli :as cli]
                     [generator :as gen]
                     [store :as store]
-                    [tests :as tests]]
+                    [tests :as tests]
+                    [util :as u]]
             [jepsen.os.ubuntu :as ubuntu]
             [jepsen.os.container :as container]
             [jepsen.dqlite [db :as db]
@@ -48,6 +49,23 @@
          :count (count blips)
          :blips blips}))))
 
+(defn test-name
+  "Human friendly test name."
+  [{:keys [workload nemesis nodes concurrency rate] :as _opts}]
+  (let [workload (name workload)
+        nemesis  (if nemesis
+                   (u/coll nemesis)
+                   [:no-faults])
+        nemesis  (->> nemesis
+                      (map name)
+                      (str/join "-"))
+        num-nodes (count nodes)]
+    (str "dqlite"
+         "-" workload
+         "-" nemesis
+         "-" num-nodes "n" concurrency "c"
+         "-" rate "ops")))
+
 (defn test
   "Constructs a test from a map of CLI options."
   [opts]
@@ -73,7 +91,7 @@
     (merge tests/noop-test
            opts
            bank/options
-           {:name      (str "dqlite-" (name workload-name))
+           {:name      (test-name opts)
             :pure-generators true
             :members   (atom (into (sorted-set) (:nodes opts)))
             :local     local
