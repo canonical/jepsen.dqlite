@@ -43,15 +43,34 @@ jobs:
           - partition,kill,disk
           - partition,kill,member
     runs-on: ubuntu-20.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Cache Jepsen (lein project) dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-clojure-${{ hashFiles('**/project.clj') }}
+        restore-keys: |
+          ${{ runner.os }}-clojure
 
     - name: Install Go
       uses: actions/setup-go@v3
 
     - name: Setup environment
+      timeout-minutes: 15
       run: |
         sudo apt update
         sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential
