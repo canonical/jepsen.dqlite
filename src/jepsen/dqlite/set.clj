@@ -42,12 +42,15 @@
 
 (defn r
   []
-  {:type :invoke, :f :read, :value nil})
-
+  (repeat {:type :invoke, :f :read, :value nil}))
 
 (defn workload
-  [opts]
-  (let [c (:concurrency opts)]
-    {:client (Client. nil)
-     :generator (gen/reserve (/ c 2) (repeat (r)) (w))
-     :checker (checker/set-full)}))
+  [_opts]
+  {:client (Client. nil)
+   :generator (gen/mix [r w])
+   :final-generator (gen/phases
+                     (gen/log "Final reads...")
+                     (->> (gen/once (r))
+                          (gen/map #(assoc % :final? true))
+                          (gen/each-thread)))
+   :checker (checker/set-full {:linearizable? true})})

@@ -103,7 +103,13 @@
 (defn stable-package
   [opts]
   {:nemesis (stable-nemesis opts)
-   :generator nil})
+   :generator nil
+   :perf #{{:name  "stable"
+            :fs    [:stable]
+            :color "#90EEA8"}
+           {:name  "health"
+            :fs    [:health]
+            :color "#90EE90"}}})
 
 (defn nemesis-package
   "Constructs a nemesis and generators for dqlite."
