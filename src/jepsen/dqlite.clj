@@ -152,7 +152,7 @@
     :parse-fn parse-long
     :validate [pos? "Must be a positive number."]]
 
-   [nil "--partition-targets TARGETS" (str "A comma-separated list of nodes to target for network partitions; "
+   [nil "--partition-targets TARGETS" (str "A comma-separated list of partition strategies to use for network partitions; "
                                            (cli/one-of all-partition-specs))
     :default  (vec all-partition-specs)
     :parse-fn parse-comma-kws
