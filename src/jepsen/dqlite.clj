@@ -26,6 +26,10 @@
    :bank   bank/workload
    :set    set/workload})
 
+(def all-partition-specs
+  "All partition specifications supported by test."
+  #{:primaries :one :majority :majorities-ring}) ; :minority-third usually redundant
+
 (def assertion-pattern
   "An egrep pattern for finding assertion errors in log files."
   "Assertion|raft_start|start-stop-daemon|for jepsen")
@@ -55,7 +59,7 @@
         workload      ((get workloads (:workload opts)) opts)
         nemesis-opts  {:faults (set (:nemesis opts))
                        :nodes  (:nodes opts)
-                       :partition {:targets [:primaries]}
+                       :partition {:targets (:partition-targets opts)}
                        :pause     {:targets [nil :one :primaries :majority :all]}
                        :kill      {:targets [nil :one :primaries :majority :all]}
                        :interval  (:nemesis-interval opts)
@@ -125,6 +129,13 @@
        (map keyword)
        (mapcat #(get special-nemeses % [%]))))
 
+(defn parse-comma-kws
+  "Takes a comma-separated string and returns a collection of keywords."
+  [spec]
+  (->> (str/split spec #",")
+       (remove #{""})
+       (map keyword)))
+
 (def cli-opts
   "Command line options for tools.cli"
   [["-v" "--version VERSION" "What version of Dqlite should to install"
@@ -141,6 +152,12 @@
     :parse-fn parse-long
     :validate [pos? "Must be a positive number."]]
 
+   [nil "--partition-targets TARGETS" (str "A comma-separated list of nodes to target for network partitions; "
+                                           (cli/one-of all-partition-specs))
+    :default  (vec all-partition-specs)
+    :parse-fn parse-comma-kws
+    :validate [(partial every? all-partition-specs) (cli/one-of all-partition-specs)]]
+   
    [nil "--latency MSECS" "Expected average one-way network latency between nodes."
     :default 10
     :parse-fn parse-long
