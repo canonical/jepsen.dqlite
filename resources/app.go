@@ -619,6 +619,7 @@ func main() {
 		app.WithNetworkLatency(time.Duration(*latency) * time.Millisecond),
 		app.WithRolesAdjustmentFrequency(time.Second),
 		app.WithSnapshotParams(dqlite.SnapshotParams{Threshold: 128, Trailing: 1024}),
+		app.WithServerSideRoleManagement(true),
 	}
 
 	// When rejoining set app.WithCluster() to the full list of existing
