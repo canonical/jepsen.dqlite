@@ -12,3 +12,6 @@ pom.xml.asc
 .hg/
 store/
 resources/app
+.calva/
+.clj-kondo/
+.lsp/
