@@ -132,8 +132,22 @@ jobs:
         lein run test --no-ssh --binary $(pwd)/resources/app --workload ${{ matrix.workload }} --time-limit $(cat time-limit) --nemesis ${{ matrix.nemesis }} --rate 100
         sudo ./resources/network.sh teardown 5
 
-    - uses: actions/upload-artifact@v3
+    - name: Summary Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}-summary
+        path: |
+          store/dqlite*/**/results.edn
+          store/dqlite*/**/latency-raw.png
+          !**/current/
+          !**/latest/
+
+    - name: Failure Artifact
+      uses: actions/upload-artifact@v3
       if: failure()
       with:
         name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}
-        path: store/dqlite*
+        path: |
+          store/dqlite*
+          !**/current/
+          !**/latest/
