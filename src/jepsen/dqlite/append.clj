@@ -1,7 +1,6 @@
 (ns jepsen.dqlite.append
   "Test for transactional list append."
-  (:require [clojure [string :as str]]
-            [jepsen [client :as client]]
+  (:require [jepsen [client :as client]]
             [jepsen.tests.cycle.append :as append]
             [jepsen.dqlite [client :as c]]))
 
@@ -27,9 +26,11 @@
 
 (defn workload
   "A list append workload."
-  [opts]
-  (assoc (append/test {:key-count         10
-                       :max-txn-length    2
+  [{:keys [key-count min-txn-length max-txn-length max-writes-per-key] :as _opts}]
+  (merge (append/test {:key-count          (or key-count 12)
+                       :min-txn-length     (or min-txn-length 1)
+                       :max-txn-length     (or max-txn-length 4)
+                       :max-writes-per-key (or max-writes-per-key 128)
                        :consistency-models [:serializable
                                             :strict-serializable]})
-         :client (Client. nil)))
+         {:client (Client. nil)}))
