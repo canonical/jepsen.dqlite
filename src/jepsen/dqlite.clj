@@ -73,8 +73,7 @@
 (defn test
   "Constructs a test from a map of CLI options."
   [opts]
-  (let [workload-name (:workload opts)
-        workload      ((get workloads (:workload opts)) opts)
+  (let [workload      ((get workloads (:workload opts)) opts)
         nemesis-opts  {:faults (set (:nemesis opts))
                        :nodes  (:nodes opts)
                        :partition {:targets (:partition-targets opts)}
@@ -94,12 +93,14 @@
                               :extra-packages  [tmpfs]))]
     (merge tests/noop-test
            opts
-           bank/options
+           ;; accommodate Jepsen bug, TODO: PR Jepsen and remove dissoc from workload
+           (dissoc workload :generator :final-generator :checker)
+           (when local
+             {:remote c/nsenter})
            {:name      (test-name opts)
             :pure-generators true
             :members   (atom (into (sorted-set) (:nodes opts)))
             :local     local
-            :remote    (if local c/nsenter c/ssh)
             :os        os
             :db        db
             :checker    (checker/compose
@@ -110,7 +111,6 @@
                           :assert      (checker/log-file-pattern assertion-pattern "app.log")
                           :core-dump   (core-dump-checker)
                           :workload    (:checker workload)})
-            :client    (:client workload)
             :nemesis   (:nemesis nemesis)
             :generator (gen/phases
                         (->> (:generator workload)
@@ -129,10 +129,7 @@
                         (gen/sleep 2)
                         (gen/log "Checking cluster health and stability")
                         (gen/nemesis {:type :info, :f :health, :value nil})
-                        (gen/clients (:final-generator workload)))
-            }
-           )
-    ))
+                        (gen/clients (:final-generator workload)))})))
 
 (def special-nemeses
   "A map of special nemesis names to collections of faults"
