@@ -444,23 +444,28 @@ func membersDelete(ctx context.Context, app *app.App, value string) (string, err
 }
 
 func readyGet(ctx context.Context, app *app.App, nodes []string) (string, error) {
+	log.Printf("readyGet")
 	cli, err := app.Leader(ctx)
 	if err != nil {
+		log.Printf("-> couldn't get leader: %s", err)
 		return "", err
 	}
 	defer cli.Close()
 
 	cluster, err := cli.Cluster(ctx)
 	if err != nil {
+		log.Printf("-> couldn't get cluster: %s", err)
 		return "", err
 	}
 
 	if n := len(cluster); n != len(nodes) {
+		log.Printf("-> cluster is not complete (%d nodes)", n)
 		return "", fmt.Errorf("cluster has still only %d nodes", n)
 	}
 
 	for _, node := range cluster {
 		if node.Role == client.Spare {
+			log.Printf("-> cluster is not complete (node %s)", node.Address)
 			return "", fmt.Errorf("node %s is still %s", node.Address, node.Role)
 		}
 	}
@@ -619,6 +624,7 @@ func main() {
 		app.WithNetworkLatency(time.Duration(*latency) * time.Millisecond),
 		app.WithRolesAdjustmentFrequency(time.Second),
 		app.WithSnapshotParams(dqlite.SnapshotParams{Threshold: 128, Trailing: 1024}),
+		app.WithServerSideRoleManagement(true),
 	}
 
 	// When rejoining set app.WithCluster() to the full list of existing

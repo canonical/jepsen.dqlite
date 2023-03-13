@@ -119,6 +119,7 @@ jobs:
       env:
         CGO_LDFLAGS_ALLOW: "-Wl,-z,now"
         LD_LIBRARY_PATH: "/usr/local/lib"
+        GOPROXY: "direct"
       timeout-minutes: 8
       run: |
         sudo ldconfig
