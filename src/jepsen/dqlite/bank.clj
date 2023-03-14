@@ -41,6 +41,7 @@
   "A bank workload."
   [_opts]
   (merge (bank/test {:negative-balances? true})
+         options
          {:client (Client. nil)
           :final-generator (gen/phases
                             (gen/log "Final reads...")
