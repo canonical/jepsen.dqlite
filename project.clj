@@ -12,4 +12,9 @@
              ;"-XX:+PrintGCDetails"
              ;"-verbose:gc"
              ]
-  :repl-options {:init-ns jepsen.dqlite})
+  :repl-options {:init-ns jepsen.dqlite}
+  :plugins [[lein-codox "0.10.8"]
+            [lein-localrepo "0.5.4"]]
+  :codox {:output-path "target/doc/"
+          :source-uri "../../{filepath}#L{line}"
+          :metadata {:doc/format :markdown}})

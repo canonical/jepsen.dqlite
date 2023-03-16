@@ -9,20 +9,48 @@ on:
     inputs:
       raftRepo:
         description: 'Raft Repo'
-        required: true
         default: 'https://github.com/Canonical/raft.git'
       raftBranch:
         description: 'Raft Branch'
-        required: true
         default: 'master'
       dqliteRepo:
         description: 'Dqlite Repo'
-        required: true
         default: 'https://github.com/Canonical/dqlite.git'
       dqliteBranch:
         description: 'Dqlite Branch'
-        required: true
         default: 'master'
+  workflow_call:
+    inputs:
+      jepsenDqliteRepo:
+        type: string
+        required: false
+      jepsenDqliteBranch:
+        type: string
+        required: false
+      jepsenRepo:
+        type: string
+        required: false
+      jepsenBranch:
+        type: string
+        required: false
+      raftRepo:
+        type: string
+        required: false
+      raftBranch:
+        type: string
+        required: false
+      dqliteRepo:
+        type: string
+        required: false
+      dqliteBranch:
+        type: string
+        required: false
+
+env:
+  RAFT_REPO:   'https://github.com/Canonical/raft.git'
+  RAFT_BRANCH: 'master'
+  DQLITE_REPO:   'https://github.com/Canonical/dqlite.git'
+  DQLITE_BRANCH: 'master'
 
 jobs:
   test:
@@ -47,6 +75,9 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      with:
+        repository: ${{ inputs.jepsenDqliteRepo || github.repository }}
+        ref: ${{ inputs.jepsenDqliteBranch || github.ref }}
 
     - name: Cache Go modules
       uses: actions/cache@v3
@@ -76,6 +107,15 @@ jobs:
         sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential
         printf core | sudo tee /proc/sys/kernel/core_pattern
 
+    - name: Install local Jepsen
+      if: ${{ inputs.jepsenRepo && inputs.jepsenBranch }}
+      run: |
+        git clone --branch ${{ inputs.jepsenBranch }} --depth 1 ${{ inputs.jepsenRepo }}
+        cd jepsen/jepsen
+        git log -n 1
+        lein install
+        cd ../..
+
     - name: Install libbacktrace
       run: |
         git clone https://github.com/ianlancetaylor/libbacktrace --depth 1
@@ -88,9 +128,6 @@ jobs:
         cd ..
 
     - name: Build raft
-      env:
-        RAFT_REPO: 'https://github.com/Canonical/raft.git'
-        RAFT_BRANCH: 'master'
       run: |
           git clone --branch ${{ inputs.raftBranch || env.RAFT_BRANCH }} --depth 1 ${{ inputs.raftRepo || env.RAFT_REPO }}
           cd raft
@@ -102,9 +139,6 @@ jobs:
           cd ..
 
     - name: Build dqlite
-      env:
-        DQLITE_REPO: 'https://github.com/Canonical/dqlite.git'
-        DQLITE_BRANCH: 'master'
       run: |
           git clone --branch ${{ inputs.dqliteBranch || env.DQLITE_BRANCH }} --depth 1 ${{ inputs.dqliteRepo || env.DQLITE_REPO }}
           cd dqlite
@@ -126,14 +160,35 @@ jobs:
         go get -tags libsqlite3 github.com/canonical/go-dqlite/app
         go build -tags libsqlite3 -o resources/app resources/app.go
         sudo ufw disable
+        sleep 0.200
         sudo systemctl stop ufw.service
         sudo ./resources/network.sh setup 5
         if test ${{ matrix.workload }} = set && test ${{ matrix.nemesis }} = stop; then echo 120 >time-limit; else echo 240 >time-limit; fi
         lein run test --no-ssh --binary $(pwd)/resources/app --workload ${{ matrix.workload }} --time-limit $(cat time-limit) --nemesis ${{ matrix.nemesis }} --rate 100
         sudo ./resources/network.sh teardown 5
 
-    - uses: actions/upload-artifact@v3
-      if: failure()
+    - name: Jepsen log Summary
+      if: ${{ always() }}
+      run: tail -n 100 store/current/jepsen.log > tail-jepsen.log
+
+    - name: Summary Artifact
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v3
       with:
-        name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}
-        path: store/dqlite*
+        name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}-summary
+        path: |
+          tail-jepsen.log
+          store/dqlite*/**/results.edn
+          store/dqlite*/**/latency-raw.png
+          !**/current/
+          !**/latest/
+
+    - name: Failure Artifact
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}-failure
+        path: |
+          store/dqlite*
+          !**/current/
+          !**/latest/
