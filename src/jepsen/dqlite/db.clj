@@ -276,8 +276,17 @@
         (kill! test node))
 
       db/Pause
-      (pause!  [_ test node] (c/su (cu/grepkill! :stop "app")))
-      (resume! [_ test node] (c/su (cu/grepkill! :cont "app")))
+      (pause!
+        [_db _test _node]
+        (c/su
+         (cu/grepkill! :stop bin))
+        :paused)
+
+      (resume!
+        [_db _test _node]
+        (c/su
+         (cu/grepkill! :cont bin))
+        :resumed)
 
       db/Primary
       (setup-primary! [db test node])
