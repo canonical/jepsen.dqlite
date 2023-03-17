@@ -65,11 +65,13 @@ jobs:
           - partition
           - kill
           - stop
+          - pause
           - disk
           - member
           - partition,kill,stop
           - partition,kill,disk
           - partition,kill,member
+          - partition,pause,disk
     runs-on: ubuntu-20.04
     timeout-minutes: 25
     steps:
@@ -169,7 +171,7 @@ jobs:
 
     - name: Jepsen log Summary
       if: ${{ always() }}
-      run: tail -n 100 store/current/jepsen.log > tail-jepsen.log
+      run: tail -n 100 store/current/jepsen.log > store/current/tail-jepsen.log
 
     - name: Summary Artifact
       if: ${{ always() }}
@@ -177,9 +179,9 @@ jobs:
       with:
         name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}-summary
         path: |
-          tail-jepsen.log
           store/dqlite*/**/results.edn
           store/dqlite*/**/latency-raw.png
+          store/dqlite*/**/tail-jepsen.log
           !**/current/
           !**/latest/
 
