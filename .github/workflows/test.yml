@@ -69,9 +69,10 @@ jobs:
           - disk
           - member
           - partition,kill,stop
-          - partition,kill,disk
+          - partition,kill
           - partition,kill,member
-          - partition,pause,disk
+          - partition,disk
+          - pause,disk
     runs-on: ubuntu-20.04
     timeout-minutes: 25
     steps:
