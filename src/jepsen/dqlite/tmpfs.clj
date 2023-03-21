@@ -49,7 +49,7 @@
   (invoke! [_this test op]
     (assoc op :value
            (case (:f op)
-             :fill-disk (let [targets (nc/db-nodes test db (:value op))]
+             :fill-disk (let [targets (nc/db-nodes test (:db test) (:value op))]
                           (c/on-nodes test targets
                                       (fn [_ _] (fill! db))))
              :free-disk (c/on-nodes test

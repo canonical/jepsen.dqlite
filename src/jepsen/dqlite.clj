@@ -80,7 +80,7 @@
                        :pause     {:targets [nil :one :primaries :majority :all]}
                        :kill      {:targets [nil :one :primaries :majority :all]}
                        :interval  (:nemesis-interval opts)
-                       :disk      {:targets [nil :one :majority :all] ; :primaries not supported
+                       :disk      {:targets [nil :one :primaries :majority :all]
                                    :dir     db/data-dir
                                    :size-mb 100}}
         local         (:dummy? (:ssh opts))
