@@ -80,7 +80,8 @@
                        :pause     {:targets [nil :one :primaries :majority :all]}
                        :kill      {:targets [nil :one :primaries :majority :all]}
                        :interval  (:nemesis-interval opts)
-                       :disk      {:dir     db/data-dir
+                       :disk      {:targets [nil :one :primaries :majority :all]
+                                   :dir     db/data-dir
                                    :size-mb 100}}
         local         (:dummy? (:ssh opts))
         os            (if local container/os ubuntu/os)

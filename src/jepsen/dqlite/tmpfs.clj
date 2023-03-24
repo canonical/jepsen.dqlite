@@ -6,7 +6,8 @@
                     [db :as db]
                     [generator :as gen]
                     [nemesis :as nem]
-                    [util :as util :refer [meh random-nonempty-subset]]]
+                    [util :as util :refer [meh]]]
+            [jepsen.nemesis.combined :as nc]
             [slingshot.slingshot :refer [try+ throw+]]))
 
 (defrecord DB [dir size-mb]
@@ -43,58 +44,60 @@
 
 (defrecord Nemesis [db]
   nem/Nemesis
-  (setup! [this test] this)
+  (setup! [this _test] this)
 
-  (invoke! [this test op]
+  (invoke! [_this test op]
     (assoc op :value
            (case (:f op)
-             :fill-disk (c/on-nodes test (random-nonempty-subset (:nodes test))
-                                    (fn [_ _] (fill! db)))
-             :free-disk  (c/on-nodes test
-                                     (fn [_ _] (free! db))))))
+             :fill-disk (let [targets (nc/db-nodes test (:db test) (:value op))]
+                          (c/on-nodes test targets
+                                      (fn [_ _] (fill! db))))
+             :free-disk (c/on-nodes test
+                                    (fn [_ _] (free! db))))))
 
-  (teardown! [this test])
+  (teardown! [_this _test])
 
   nem/Reflection
-  (fs [this]
+  (fs [_this]
     #{:fill-disk :free-disk}))
-
-(defn generator
-  "Generates a random mixture of fill-disk and free-disk operations."
-  [opts]
-  (let [stop (fn [test _] {:type  :info
-                           :f     :free-disk})
-        start (fn [test _] {:type :info
-                            :f    :fill-disk})]
-    (->> (gen/mix [start stop])
-         (gen/stagger (:interval opts)))))
 
 (defn package
   "Options:
+   ```clj
+   :faults #{:disk}
+   :disk {:targets [nil :one :primaries :majority :all]
+          :dir     db/data-dir
+          :size-mb 100}
+   ```
 
-    :faults  A set of faults we expect to generate. Should include :disk
-    :disk    Options specifically for disk failures
-
-  Disk options are:
-
-    :dir      The directory we'd like to turn into a tmpfs and fill
-    :size-mb  The size, in megabytes, of that directory
-
-  If faults includes disk, constructs a map with a DB, nemesis, generator, and
-  perf descriptor suitable for testing tmpfs."
-  [opts]
-  (assert (set? (:faults opts)))
-  (when ((:faults opts) :disk)
-    (let [disk-opts (:disk opts)
-          dir       (:dir disk-opts)
-          size-mb   (:size-mb disk-opts)
-          _         (assert (string? dir))
-          _         (assert (pos? size-mb))
-          db        (DB. (:dir disk-opts) (:size-mb disk-opts))]
+   Returns:
+   ```clj
+   {:db              ; tmpfs
+    :nemesis         ; disk nemesis for tmpfs
+    :generator       ; fill/free disk
+    :final-generator ; free disk
+    :perf            ; pretty plots            
+   ```"
+  [{:keys [faults disk interval] :as _opts}]
+  (when (:disk faults)
+    (let [{:keys [targets dir size-mb]} disk
+          _  (assert (string? dir))
+          _  (assert (pos? size-mb))
+          db (DB. dir size-mb)
+          fills (fn [_ _]
+                   {:type  :info
+                    :f     :fill-disk
+                    :value (rand-nth targets)})
+          frees (repeat
+                  {:type  :info
+                   :f     :free-disk
+                   :value :all})
+          interval (or interval nc/default-interval)]
       {:db              db
        :nemesis         (Nemesis. db)
-       :generator       (generator opts)
-       :final-generator {:type :info, :f :free-disk, :value nil}
+       :generator       (->> (gen/flip-flop fills frees)
+                             (gen/stagger interval))
+       :final-generator (gen/once frees)
        :perf            #{{:name  "disk"
                            :start #{:fill-disk}
                            :stop  #{:free-disk}
