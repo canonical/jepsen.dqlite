@@ -78,6 +78,7 @@
                        :nodes  (:nodes opts)
                        :partition {:targets (:partition-targets opts)}
                        :pause     {:targets [nil :one :primaries :majority :all]}
+                       :stop      {:targets [nil :one :primaries :majority :all]}
                        :kill      {:targets [nil :one :primaries :majority :all]}
                        :interval  (:nemesis-interval opts)
                        :disk      {:targets [nil :one :primaries :majority :all]

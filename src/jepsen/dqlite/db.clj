@@ -57,35 +57,38 @@
 (defn start!
   "Start the Go dqlite test application"
   [test node]
-  (info "Starting node")
-  (c/exec "mkdir" "-p" data-dir)
-  ;; XXX this is a workaround, it seems that the pidfile gets the wrong
-  ;; permissions somehow
-  (when (cu/exists? pidfile)
-    (c/exec "chmod" "go-w" pidfile))
-  (cu/start-daemon! {:env {:LIBDQLITE_TRACE "1"
-                           :LIBRAFT_TRACE "1"}
-                     :logfile logfile
-                     :pidfile pidfile
-                     :chdir   data-dir}
-                    binary
-                    :-dir data-dir
-                    :-node (name node)
-                    :-latency (:latency test)
-                    :-cluster (str/join "," (:nodes test))))
+  (if (cu/daemon-running? pidfile)
+    :already-running
+    (c/su
+      (c/exec :mkdir :-p data-dir)
+      (cu/start-daemon! {:env {:LIBDQLITE_TRACE "1"
+                               :LIBRAFT_TRACE "1"}
+                         :logfile logfile
+                         :pidfile pidfile
+                         :chdir   data-dir}
+                        binary
+                        :-dir data-dir
+                        :-node (name node)
+                        :-latency (:latency test)
+                        :-cluster (str/join "," (:nodes test))))))
 
 (defn kill!
-  "Stop the Go dqlite test application"
-  [test node]
-  (info "Killing node")
-  (cu/stop-daemon! pidfile))
+  "Kill the Go dqlite test application"
+  [_test node]
+  (info "Killing" bin "on" node)
+  (c/su
+   (cu/grepkill! bin))
+  :killed)
 
 (defn stop!
-  "Stops the Go dqlite test application"
-  [test node]
-  (info "Stopping node")
-  (c/exec :rm :-f pidfile)
-  (cu/grepkill! 15 binary))
+  "Stop the Go dqlite test application"
+  [_test _node]
+  (if (not (cu/daemon-running? pidfile))
+    :not-running
+    (do
+      (c/su
+       (cu/stop-daemon! pidfile))
+      :stopped)))
 
 (defn members
   "Fetch the cluster members from a random node (who will ask the leader)."
@@ -269,21 +272,23 @@
           everything))
 
       db/Process
-      (start! [_ test node]
+      (start! [_db test node]
         (start! test node))
 
-      (kill! [_ test node]
+      (kill! [_db test node]
         (kill! test node))
 
       db/Pause
       (pause!
-        [_db _test _node]
+        [_db _test node]
+        (info "Pausing" bin "on" node)
         (c/su
          (cu/grepkill! :stop bin))
         :paused)
 
       (resume!
-        [_db _test _node]
+        [_db _test node]
+        (info "Resuming" bin "on" node)
         (c/su
          (cu/grepkill! :cont bin))
         :resumed)
