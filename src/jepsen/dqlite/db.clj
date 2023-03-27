@@ -75,10 +75,11 @@
 (defn kill!
   "Kill the Go dqlite test application"
   [_test node]
-  (info "Killing" bin "on" node)
-  (c/su
-   (cu/grepkill! bin))
-  :killed)
+  (let [signal (rand-nth [:SIGTERM :SIGKILL])]
+    (info "Killing" bin "with" signal "on" node)
+    (c/su
+     (cu/grepkill! signal bin))
+    :killed))
 
 (defn stop!
   "Stop the Go dqlite test application"
