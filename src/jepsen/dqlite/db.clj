@@ -73,16 +73,17 @@
                         :-cluster (str/join "," (:nodes test))))))
 
 (defn kill!
-  "Kill the Go dqlite test application"
+  "Gracefully kill, `SIGTERM`, the Go dqlite test application."
   [_test node]
-  (let [signal (rand-nth [:SIGTERM :SIGKILL])]
+  (let [signal :SIGTERM]
     (info "Killing" bin "with" signal "on" node)
     (c/su
      (cu/grepkill! signal bin))
     :killed))
 
 (defn stop!
-  "Stop the Go dqlite test application"
+  "Stop the Go dqlite test application with `stop-daemon!`,
+   which will `SIGKILL`."
   [_test _node]
   (if (not (cu/daemon-running? pidfile))
     :not-running
