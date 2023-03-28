@@ -68,9 +68,9 @@ jobs:
           - pause
           - disk
           - member
-          - partition,kill,stop
+          - partition,stop
           - partition,kill
-          - partition,kill,member
+          - partition,member
           - partition,disk
           - pause,disk
     runs-on: ubuntu-20.04

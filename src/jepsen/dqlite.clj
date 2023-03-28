@@ -31,6 +31,10 @@
   "All partition specifications supported by test."
   #{:primaries :one :majority :majorities-ring}) ; :minority-third usually redundant
 
+(def all-node-specs
+  "All node specifications supported by test."
+  #{:one :primaries :majority :all}) ; nil, :minority, and :minority-third usually redundant
+
 (def assertion-pattern
   "An egrep pattern for finding assertion errors in log files."
   "Assertion|raft_start|start-stop-daemon|for jepsen")
@@ -77,10 +81,11 @@
         nemesis-opts  {:faults (set (:nemesis opts))
                        :nodes  (:nodes opts)
                        :partition {:targets (:partition-targets opts)}
-                       :pause     {:targets [nil :one :primaries :majority :all]}
-                       :kill      {:targets [nil :one :primaries :majority :all]}
+                       :pause     {:targets (:node-targets opts)}
+                       :stop      {:targets (:node-targets opts)}
+                       :kill      {:targets (:node-targets opts)}
                        :interval  (:nemesis-interval opts)
-                       :disk      {:targets [nil :one :primaries :majority :all]
+                       :disk      {:targets (:node-targets opts)
                                    :dir     db/data-dir
                                    :size-mb 100}}
         local         (:dummy? (:ssh opts))
@@ -174,6 +179,12 @@
     :parse-fn parse-comma-kws
     :validate [(partial every? all-partition-specs) (cli/one-of all-partition-specs)]]
    
+   [nil "--node-targets TARGETS" (str "A comma-separated list of strategies to use for targeting nodes; "
+                                           (cli/one-of all-node-specs))
+    :default  (vec all-node-specs)
+    :parse-fn parse-comma-kws
+    :validate [(partial every? all-node-specs) (cli/one-of all-node-specs)]]
+
    [nil "--latency MSECS" "Expected average one-way network latency between nodes."
     :default 10
     :parse-fn parse-long

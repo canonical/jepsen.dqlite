@@ -44,44 +44,49 @@
                    :fs    [:shrink]
                    :color "#ACA0E9"}}}))
 
-(defn stop-generator
-  [opts]
-  (let [stop (fn [test _] {:type :info, :f :stop-node, :value (rand-nth (:nodes test))})
-        start (fn [test _] {:type :info, :f :start-node, :value nil})]
-    (->> (gen/mix [stop stop start])
-         (gen/stagger (:interval opts)))))
-
 (defn stop-nemesis
-  "A nemesis which responds to stop-node and start-node by politely
-  stopping and starting the dqlite process."
-  [opts]
+  "A nemesis which responds to `:stop-node` and `:start-node` by politely
+  stopping and starting the dqlite app."
+  [db]
   (reify
     n/Nemesis
-    (setup! [this test] this)
+    (setup! [this _test] this)
 
-    (invoke! [this test op]
-      (assoc op :value
-             (case (:f op)
-               :start-node (c/on-nodes test db/start!)
-               :stop-node  (c/on-nodes test [(:value op)] db/stop!))))
+    (invoke! [_this test {:keys [f value] :as op}]
+      (let [targets (nc/db-nodes test db value)]
+        (assoc op :value
+               (case f
+                 :start-node (c/on-nodes test targets db/start!)
+                 :stop-node  (c/on-nodes test targets db/stop!)))))
 
-    (teardown! [this test])
+    (teardown! [_this _test])
 
     n/Reflection
-    (fs [this]
+    (fs [_this]
       #{:start-node :stop-node})))
 
 (defn stop-package
-  "A nemesis package for politely stopping and restarting nodes."
-  [opts]
-  (when ((:faults opts) :stop)
-    {:nemesis         (stop-nemesis opts)
-     :generator       (stop-generator opts)
-     :final-generator {:type :info, :f :start-node, :value nil}
-     :perf            #{{:name  "stop"
-                         :start #{:stop-node}
-                         :stop  #{:start-node}
-                         :color "#86DC68"}}}))
+  "A nemesis package for politely stopping and restarting the dqlite app."
+  [{:keys [faults stop db interval] :as _opts}]
+  (when (:stop faults)
+    (let [targets (:targets stop)
+          stops  (fn [_ _]
+                   {:type  :info
+                    :f     :stop-node
+                    :value (rand-nth targets)})
+          starts (repeat
+                  {:type  :info
+                   :f     :start-node
+                   :value :all})
+          interval (or interval nc/default-interval)]
+      {:nemesis         (stop-nemesis db)
+       :generator       (->> (gen/flip-flop stops starts)
+                             (gen/stagger interval))
+       :final-generator (gen/once starts)
+       :perf            #{{:name  "stop"
+                           :start #{:stop-node}
+                           :stop  #{:start-node}
+                           :color "#86DC68"}}})))
 
 (defn stable-nemesis
   [opts]
@@ -105,10 +110,14 @@
   {:nemesis (stable-nemesis opts)
    :generator nil
    :perf #{{:name  "stable"
-            :fs    [:stable]
+            :fs    #{:stable}
+            :start #{}
+            :stop  #{}
             :color "#90EEA8"}
            {:name  "health"
-            :fs    [:health]
+            :fs    #{:health}
+            :start #{}
+            :stop  #{}
             :color "#90EE90"}}})
 
 (defn nemesis-package
