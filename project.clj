@@ -5,6 +5,7 @@
             :url "https://www.eclipse.org/legal/epl-2.0/"}
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [jepsen "0.3.2-SNAPSHOT"]
+                 [jepsen "0.3.2-SNAPSHOT"]
                  [clj-http "3.10.1"]]
   :main jepsen.dqlite
   :jvm-opts ["-Djava.awt.headless=true"
