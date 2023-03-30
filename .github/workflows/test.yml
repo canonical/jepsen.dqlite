@@ -72,6 +72,7 @@ jobs:
           - partition,kill
           - partition,member
           - partition,disk
+          - packet,stop
           - pause,disk
     runs-on: ubuntu-20.04
     timeout-minutes: 25
