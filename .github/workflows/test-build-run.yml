@@ -1,0 +1,204 @@
+name: Callable Dqlite Jepsen tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      raft-repo:
+        description: 'Raft Repo'
+        default: 'https://github.com/Canonical/raft.git'
+      raft-branch:
+        description: 'Raft Branch'
+        default: 'master'
+      dqlite-repo:
+        description: 'Dqlite Repo'
+        default: 'https://github.com/Canonical/dqlite.git'
+      dqlite-branch:
+        description: 'Dqlite Branch'
+        default: 'master'
+      workloads:
+        description: 'Jepsen workloads as JSON, e.g. [ append, bank ]'
+        required: true
+      nemeses:
+        description: "Jepsen nemesis as JSON, e.g. [ 'pause,disk' ]"
+        required: true
+      cli-opts:
+        description: 'Jepsen cli opts, e.g. --node-targets primaries'
+        required: false
+  workflow_call:
+    inputs:
+      jepsen-dqlite-repo:
+        type: string
+        required: false
+        default: https://github.com/canonical/jepsen.dqlite.git
+      jepsen-dqlite-branch:
+        type: string
+        required: false
+        default: master
+      jepsen-repo:
+        type: string
+        required: false
+      jepsen-branch:
+        type: string
+        required: false
+      raft-repo:
+        type: string
+        required: false
+      raft-branch:
+        type: string
+        required: false
+      dqlite-repo:
+        type: string
+        required: false
+      dqlite-branch:
+        type: string
+        required: false
+      workloads:
+        type: string
+        required: true
+      nemeses:
+        type: string
+        required: true
+      cli-opts:
+        type: string
+        required: false
+
+env:
+  RAFT_REPO:   'https://github.com/Canonical/raft.git'
+  RAFT_BRANCH: 'master'
+  DQLITE_REPO:   'https://github.com/Canonical/dqlite.git'
+  DQLITE_BRANCH: 'master'
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        workload: ${{ fromJSON(inputs.workloads) }}
+        nemesis: ${{ fromJSON(inputs.nemeses) }}
+    runs-on: ubuntu-20.04
+    timeout-minutes: 25
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ inputs.jepsen-dqlite-repo || github.repository }}
+        ref: ${{ inputs.jepsen-dqlite-branch || github.ref }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Cache Jepsen (lein project) dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-clojure-${{ hashFiles('**/project.clj') }}
+        restore-keys: |
+          ${{ runner.os }}-clojure
+
+    - name: Install Go
+      uses: actions/setup-go@v3
+
+    - name: Setup environment
+      timeout-minutes: 15
+      run: |
+        sudo apt update
+        sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential
+        printf core | sudo tee /proc/sys/kernel/core_pattern
+
+    - name: Install local Jepsen
+      if: ${{ inputs.jepsen-repo && inputs.jepsen-branch }}
+      run: |
+        git clone --branch ${{ inputs.jepsen-branch }} --depth 1 ${{ inputs.jepsen-repo }}
+        cd jepsen/jepsen
+        git log -n 1
+        lein install
+        cd ../..
+
+    - name: Install libbacktrace
+      run: |
+        git clone https://github.com/ianlancetaylor/libbacktrace --depth 1
+        cd libbacktrace
+        autoreconf -i
+        ./configure
+        make -j4
+        sudo make install
+        sudo ldconfig
+        cd ..
+
+    - name: Build raft
+      run: |
+          git clone --branch ${{ inputs.raft-branch || env.RAFT_BRANCH }} --depth 1 ${{ inputs.raft-repo || env.RAFT_REPO }}
+          cd raft
+          git log -n 1
+          autoreconf -i
+          ./configure --enable-debug --enable-backtrace
+          make -j4
+          sudo make install
+          cd ..
+
+    - name: Build dqlite
+      run: |
+          git clone --branch ${{ inputs.dqlite-branch || env.DQLITE_BRANCH }} --depth 1 ${{ inputs.dqlite-repo || env.DQLITE_REPO }}
+          cd dqlite
+          git log -n 1
+          autoreconf -i
+          ./configure --enable-debug --enable-backtrace
+          make -j4
+          sudo make install
+          cd ..
+
+    - name: Test
+      env:
+        CGO_LDFLAGS_ALLOW: "-Wl,-z,now"
+        LD_LIBRARY_PATH: "/usr/local/lib"
+      timeout-minutes: 8
+      run: |
+        sudo ldconfig
+        go get golang.org/x/sync/semaphore
+        go get -tags libsqlite3 github.com/canonical/go-dqlite/app
+        go build -tags libsqlite3 -o resources/app resources/app.go
+        sudo ufw disable
+        sleep 0.200
+        sudo systemctl stop ufw.service
+        sudo ./resources/network.sh setup 5
+        if test ${{ matrix.workload }} = set && test ${{ matrix.nemesis }} = none; then echo 180 >time-limit; else echo 240 >time-limit; fi
+        lein run test --no-ssh --binary $(pwd)/resources/app \
+          --workload ${{ matrix.workload }} \
+          --nemesis ${{ matrix.nemesis }} \
+          --rate 100 \
+          --time-limit $(cat time-limit) \
+          ${{ inputs.cli-opts }}
+        sudo ./resources/network.sh teardown 5
+
+    - name: Jepsen log Summary
+      if: ${{ always() }}
+      run: tail -n 100 store/current/jepsen.log > store/current/tail-jepsen.log
+
+    - name: Summary Artifact
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}-summary
+        path: |
+          store/dqlite*/**/results.edn
+          store/dqlite*/**/latency-raw.png
+          store/dqlite*/**/tail-jepsen.log
+          !**/current/
+          !**/latest/
+
+    - name: Failure Artifact
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}-failure
+        path: |
+          store/dqlite*
+          !**/current/
+          !**/latest/
