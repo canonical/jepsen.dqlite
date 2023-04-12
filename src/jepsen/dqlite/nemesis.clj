@@ -126,6 +126,7 @@
   (let [opts (update opts :faults set)]
     (->> (concat [(nc/partition-package opts)
                   (nc/db-package opts)
+                  (nc/packet-package opts)
                   (member-package opts)
                   (stop-package opts)
                   (stable-package opts)]

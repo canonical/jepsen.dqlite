@@ -28,7 +28,8 @@ jobs:
         [ 'append', 'bank', 'set' ]
       nemeses: >
         [ 'none', 'partition', 'kill', 'stop', 'disk', 'member',
-          'partition,stop', 'partition,kill', 'partition,member' ]
+          'partition,stop', 'partition,kill', 'partition,member',
+          'packet,stop' ]
       jepsen-dqlite-repo: ${{ github.repository }}
       jepsen-dqlite-branch: ${{ github.ref }}
       raft-repo: ${{ inputs.raft-repo || 'https://github.com/Canonical/raft.git' }}

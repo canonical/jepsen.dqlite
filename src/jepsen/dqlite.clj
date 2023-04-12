@@ -35,6 +35,15 @@
   "All node specifications supported by test."
   #{:one :primaries :majority :all}) ; nil, :minority, and :minority-third usually redundant
 
+(def all-nemeses
+  "All nemeses supported by test."
+  #{:partition :packet :pause :stop :kill :disk :member})
+
+(def special-nemeses
+  "A map of special nemesis names to collections of faults"
+  {:none []
+   :all  (vec all-nemeses)})
+
 (def assertion-pattern
   "An egrep pattern for finding assertion errors in log files."
   "Assertion|raft_start|start-stop-daemon|for jepsen")
@@ -81,6 +90,9 @@
         nemesis-opts  {:faults (set (:nemesis opts))
                        :nodes  (:nodes opts)
                        :partition {:targets (:partition-targets opts)}
+                       :packet {:targets   (:node-targets opts)
+                                :behaviors [{:delay {:time :70ms :jitter :10ms}}
+                                            {:corrupt {:percent :33%} :reorder {:percent :33%} :delay {:time :25ms :jitter :5ms}}]}
                        :pause     {:targets (:node-targets opts)}
                        :stop      {:targets (:node-targets opts)}
                        :kill      {:targets (:node-targets opts)}
@@ -137,11 +149,6 @@
                         (gen/nemesis {:type :info, :f :health, :value nil})
                         (gen/clients (:final-generator workload)))})))
 
-(def special-nemeses
-  "A map of special nemesis names to collections of faults"
-  {:none []
-   :all  [:pause :kill :partition :member]})
-
 (defn parse-nemesis-spec
   "Takes a comma-separated nemesis string and returns a collection of keyword
   faults."
@@ -164,9 +171,7 @@
 
    [nil "--nemesis FAULTS" "A comma-separated list of nemesis faults to enable"
     :parse-fn parse-nemesis-spec
-    :validate [(partial every? #{:pause :kill :stop :disk
-                                 :partition :member :clock})
-               "Faults must be pause, kill, partition, or member, or the special faults all or none."]]
+    :validate [(partial every? all-nemeses) (str (cli/one-of all-nemeses) ", or " (cli/one-of special-nemeses))]]
 
    [nil "--nemesis-interval SECS" "Roughly how long between nemesis operations."
     :default 5
@@ -212,7 +217,7 @@
     :missing (str "--workload " (cli/one-of workloads))
     :validate [workloads (cli/one-of workloads)]]])
 
-(def all-nemeses
+(def test-all-nemeses
   "Combinations of nemeses for tests"
   [[]
    [:pause :kill :partition :member]])
@@ -237,7 +242,7 @@
 (defn all-tests
   "Turns CLI options into a sequence of tests."
   [test-fn cli]
-  (let [nemeses   (if-let [n (:nemesis cli)] [n]  all-nemeses)
+  (let [nemeses   (if-let [n (:nemesis cli)] [n]  test-all-nemeses)
         workloads (if-let [w (:workload cli)] [w]
                     (if (:only-workloads-expected-to-pass cli)
                       workloads-expected-to-pass
