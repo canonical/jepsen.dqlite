@@ -1,0 +1,35 @@
+name: Dqlite Jepsen tests - expected fail
+
+on:
+  schedule:
+    - cron: '30 */1 * * *'
+  workflow_dispatch:
+    inputs:
+      raft-repo:
+        description: Raft Repo
+        default: https://github.com/Canonical/raft.git
+      raft-branch:
+        description: Raft Branch
+        default: master
+      dqlite-repo:
+        description: Dqlite Repo
+        default: https://github.com/Canonical/dqlite.git
+      dqlite-branch:
+        description: Dqlite Branch
+        default: master
+
+jobs:
+  expected-fail:
+    uses: canonical/jepsen.dqlite/.github/workflows/test-build-run.yml@master
+    with:
+      workloads: >
+        [ 'append', 'bank', 'set' ]
+      nemeses: >
+        [ 'partition,disk',
+          'pause', 'pause,disk' ]
+      jepsen-dqlite-repo: ${{ github.repository }}
+      jepsen-dqlite-branch: ${{ github.ref }}
+      raft-repo: ${{ inputs.raft-repo || 'https://github.com/Canonical/raft.git' }}
+      raft-branch: ${{ inputs.raft-branch || 'master' }}
+      dqlite-repo: ${{ inputs.dqlite-repo || 'https://github.com/Canonical/dqlite.git' }}
+      dqlite-branch: ${{ inputs.dqlite-branch || 'master' }}
