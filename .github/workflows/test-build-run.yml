@@ -168,7 +168,7 @@ jobs:
         sleep 0.200
         sudo systemctl stop ufw.service
         sudo ./resources/network.sh setup 5
-        if test ${{ matrix.workload }} = set && test ${{ matrix.nemesis }} = none; then echo 180 >time-limit; else echo 240 >time-limit; fi
+        if test ${{ matrix.workload }} = set; then echo 180 >time-limit; else echo 240 >time-limit; fi
         lein run test --no-ssh --binary $(pwd)/resources/app \
           --workload ${{ matrix.workload }} \
           --nemesis ${{ matrix.nemesis }} \
