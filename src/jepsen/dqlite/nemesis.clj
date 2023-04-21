@@ -1,35 +1,36 @@
 (ns jepsen.dqlite.nemesis
   "Nemeses for Dqlite"
-  (:require [jepsen [control :as c]
-                    [nemesis :as n]
-		    [util :refer [random-nonempty-subset]]
-                    [generator :as gen]]
-            [jepsen.nemesis [combined :as nc]]
-            [jepsen.dqlite.db :as db]))
+  (:require [jepsen
+             [control :as c]
+             [nemesis :as n]
+             [generator :as gen]]
+            [jepsen.dqlite.db :as db]
+            [jepsen.nemesis.combined :as nc]))
 
 (defn member-nemesis
   "A nemesis for adding and removing nodes from the cluster."
-  [opts]
+  [_opts]
   (reify n/Nemesis
-    (setup! [this test] this)
+    (setup! [this _test] this)
 
-    (invoke! [this test op]
+    (invoke! [_this test op]
       (assoc op :value
              (case (:f op)
                :grow     (db/grow! test)
                :shrink   (db/shrink! test))))
 
-    (teardown! [this test])
+    (teardown! [_this _test])
 
     n/Reflection
-    (fs [_] [:grow :shrink])))
+    (fs [_test]
+      #{:grow :shrink})))
 
 (defn member-generator
   "A generator for membership operations."
   [opts]
-  (->> (gen/mix [{:type :info, :f :grow}
-                 {:type :info, :f :shrink}])
-       (gen/delay (:interval opts))))
+  (->> (gen/mix [(repeat {:type :info, :f :grow})
+                 (repeat {:type :info, :f :shrink})])
+       (gen/stagger (or (:interval opts) nc/default-interval))))
 
 (defn member-package
   "A combined nemesis package for adding and removing nodes."
@@ -38,10 +39,14 @@
     {:nemesis   (member-nemesis opts)
      :generator (member-generator opts)
      :perf      #{{:name  "grow"
-                   :fs    [:grow]
+                   :fs    #{:grow}
+                   :start #{}
+                   :stop  #{}
                    :color "#E9A0E6"}
                   {:name  "shrink"
-                   :fs    [:shrink]
+                   :fs    #{:shrink}
+                   :start #{}
+                   :stop  #{}
                    :color "#ACA0E9"}}}))
 
 (defn stop-nemesis
