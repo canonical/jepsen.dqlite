@@ -68,6 +68,7 @@
                          :chdir   data-dir}
                         binary
                         :-dir data-dir
+                        :-disk (:disk test)
                         :-node (name node)
                         :-latency (:latency test)
                         :-cluster (str/join "," (:nodes test))))))

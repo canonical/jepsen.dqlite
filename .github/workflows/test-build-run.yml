@@ -75,6 +75,7 @@ jobs:
       matrix:
         workload: ${{ fromJSON(inputs.workloads) }}
         nemesis: ${{ fromJSON(inputs.nemeses) }}
+        disk: [0, 1]
     runs-on: ubuntu-20.04
     timeout-minutes: 25
     steps:
@@ -174,6 +175,7 @@ jobs:
           --nemesis ${{ matrix.nemesis }} \
           --rate 100 \
           --time-limit $(cat time-limit) \
+          --disk ${{ matrix.disk }} \
           ${{ inputs.cli-opts }}
         sudo ./resources/network.sh teardown 5
 
