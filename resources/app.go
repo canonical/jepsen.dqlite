@@ -587,6 +587,7 @@ func main() {
 	node := flag.String("node", "", "node name")
 	cluster := flag.String("cluster", "", "names of all nodes in the cluster")
 	latency := flag.Int("latency", 5, "average one-way network latency, in msecs")
+	disk := flag.Int("disk", 0, "non-0 value enables disk-mode")
 
 	flag.Parse()
 
@@ -619,6 +620,7 @@ func main() {
 		app.WithNetworkLatency(time.Duration(*latency) * time.Millisecond),
 		app.WithRolesAdjustmentFrequency(time.Second),
 		app.WithSnapshotParams(dqlite.SnapshotParams{Threshold: 128, Trailing: 1024}),
+		app.WithDiskMode(*disk != 0),
 	}
 
 	// When rejoining set app.WithCluster() to the full list of existing

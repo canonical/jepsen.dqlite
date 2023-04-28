@@ -195,6 +195,10 @@
     :parse-fn parse-long
     :validate [pos? "Must be a positive number."]]
 
+   [nil "--disk INT" "Disk mode on or off. Non-0 value to turn on."
+    :default 0
+    :parse-fn parse-long]
+
    ["-r" "--rate HZ" "Approximate request rate, in hz"
     :default 10
     :parse-fn parse-long
