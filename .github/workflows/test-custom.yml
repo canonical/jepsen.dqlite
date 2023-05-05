@@ -21,6 +21,9 @@ on:
       nemeses:
         description: Nemeses as a JSON array, e.g. [ 'pause', 'disk' ]
         required: true
+      disk:
+        description: "Enable or disable dqlite's disk-mode e.g. [ '0', '1 ]"
+        required: true
       cli-opts:
         description: Jepsen cli opts, e.g. --node-targets primaries
         required: false
@@ -31,6 +34,7 @@ jobs:
     with:
       workloads: ${{ inputs.workloads }}
       nemeses: ${{ inputs.nemeses }}
+      disk: ${{ inputs.disk }}
       cli-opts: ${{ inputs.cli-opts }}
       jepsen-dqlite-repo: canonical/jepsen.dqlite
       jepsen-dqlite-branch: master

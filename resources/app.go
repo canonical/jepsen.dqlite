@@ -631,6 +631,8 @@ func main() {
 		options = append(options, app.WithCluster(preceedingAddresses(*node, nodes)))
 	}
 
+	app.Setup()
+
 	// Spawn the dqlite server thread.
 	a, err := app.New(*dir, options...)
 	if err != nil {

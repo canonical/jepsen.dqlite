@@ -14,6 +14,8 @@
 # branch of https://github.com/MathieuBordere/raft.
 
 set -o errexit -o pipefail -o nounset
+set -x
+shopt -s globstar
 
 jepsen=jepsen
 workspace=/root/workspace
@@ -87,10 +89,14 @@ run-inner() {
 	pushd dqlite
 	git fetch --all
 	git checkout "$DQLITE_BRANCH"
-	autoreconf -i
-	./configure --enable-debug
-	make -j"$(nproc)"
-	make install
+	# autoreconf -i
+	# ./configure --enable-debug --enable-build-sqlite
+	# make -j"$(nproc)"
+	# make install
+
+	cc -shared -fPIC -g3 -D_GNU_SOURCE -DSQLITE_DEBUG -o libdqlite.so src/**/*.c sqlite3.c -luv -lraft
+	cp include/dqlite.h /usr/include
+	cp libdqlite.so /usr/lib/x84_64-linux-gnu
 	popd
 
 	pushd jepsen.dqlite
