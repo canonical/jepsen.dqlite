@@ -27,6 +27,8 @@ jobs:
       nemeses: >
         [ 'partition,disk',
           'pause', 'pause,disk' ]
+      disk: >
+        [ '1' ]
       jepsen-dqlite-repo: ${{ github.repository }}
       jepsen-dqlite-branch: ${{ github.ref }}
       raft-repo: ${{ inputs.raft-repo || 'https://github.com/Canonical/raft.git' }}
