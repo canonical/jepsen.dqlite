@@ -67,6 +67,12 @@ on:
       cli-opts:
         type: string
         required: false
+      include:
+        type: string
+        required: false
+      exclude:
+        type: string
+        required: false
 
 env:
   RAFT_REPO:   'https://github.com/Canonical/raft.git'
@@ -82,6 +88,8 @@ jobs:
         workload: ${{ fromJSON(inputs.workloads) }}
         nemesis: ${{ fromJSON(inputs.nemeses) }}
         disk: ${{ fromJSON(inputs.disk) }}
+        include: ${{ fromJSON(inputs.include) }}
+        exclude: ${{ fromJSON(inputs.exclude) }}
     runs-on: ubuntu-20.04
     timeout-minutes: 25
     steps:
