@@ -23,10 +23,10 @@ jobs:
     uses: canonical/jepsen.dqlite/.github/workflows/test-build-run.yml@master
     with:
       workloads: >
-        [ 'append', 'bank', 'set' ]
+        [ 'bank', 'set' ]
       nemeses: >
         [ 'partition,disk',
-          'pause', 'pause,disk' ]
+          'pause,disk' ]
       disk: >
         [ '1' ]
       jepsen-dqlite-repo: ${{ github.repository }}
