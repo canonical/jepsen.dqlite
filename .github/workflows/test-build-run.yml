@@ -67,12 +67,23 @@ on:
       cli-opts:
         type: string
         required: false
+      check-raft:
+        type: boolean
+        required: false
+      check-dqlite:
+        type: boolean
+        required: false
+      check-go-dqlite:
+        type: boolean
+        required: false
 
 env:
   RAFT_REPO:   'https://github.com/Canonical/raft.git'
   RAFT_BRANCH: 'master'
   DQLITE_REPO:   'https://github.com/Canonical/dqlite.git'
   DQLITE_BRANCH: 'master'
+  GO_DQLITE_REPO: 'https://github.com/canonical/go-dqlite'
+  GO_DQLITE_BRANCH: 'master'
 
 jobs:
   test:
@@ -141,35 +152,62 @@ jobs:
 
     - name: Build raft
       run: |
-          git clone --branch ${{ inputs.raft-branch || env.RAFT_BRANCH }} --depth 1 ${{ inputs.raft-repo || env.RAFT_REPO }}
-          cd raft
-          git log -n 1
-          autoreconf -i
-          ./configure --enable-debug --enable-backtrace
-          make -j4
-          sudo make install
-          cd ..
+        git clone --branch ${{ inputs.raft-branch || env.RAFT_BRANCH }} --depth 1 ${{ inputs.raft-repo || env.RAFT_REPO }}
+        cd raft
+        git log -n 1
+        autoreconf -i
+        ./configure --enable-debug --enable-backtrace
+        make -j4
+        sudo make install
+
+    - name: Run raft tests
+      if: ${{ inputs.check-raft }}
+      run: |
+        cd raft
+        make -j4 check
 
     - name: Build dqlite
       run: |
-          git clone --branch ${{ inputs.dqlite-branch || env.DQLITE_BRANCH }} --depth 1 ${{ inputs.dqlite-repo || env.DQLITE_REPO }}
-          cd dqlite
-          git log -n 1
-          autoreconf -i
-          ./configure --enable-debug --enable-backtrace
-          make -j4
-          sudo make install
-          cd ..
+        git clone --branch ${{ inputs.dqlite-branch || env.DQLITE_BRANCH }} --depth 1 ${{ inputs.dqlite-repo || env.DQLITE_REPO }}
+        cd dqlite
+        git log -n 1
+        autoreconf -i
+        ./configure --enable-debug --enable-backtrace
+        make -j4
+        sudo make install
+
+    - name: Run dqlite tests
+      if: ${{ inputs.check-dqlite }}
+      run: |
+        cd dqlite
+        make -j4 check
+
+    - name: Clone go-dqlite
+      run: |
+        git clone --branch ${{ inputs.go-dqlite-branch || env.GO_DQLITE_BRANCH }} --depth 1 ${{ inputs.go-dqlite-repo || env.GO_DQLITE_REPO }}
+
+    - name: Run go-dqlite tests
+      if: ${{ inputs.check-go-dqlite }}
+      env:
+        LD_LIBRARY_PATH: "/usr/local/lib"
+        GO_DQLITE_MULTITHREAD: "1"
+      run: |
+        sudo ldconfig
+        cd go-dqlite
+        go get -t -tags libsqlite3 ./...
+        go test -v -race ./...
+        VERBOSE=1 DISK=${{ matrix.disk }} ./test/dqlite-demo.sh
+        VERBOSE=1 DISK=${{ matrix.disk }} ./test/roles.sh
+        VERBOSE=1 DISK=${{ matrix.disk }} ./test/recover.sh
 
     - name: Test
       env:
-        CGO_LDFLAGS_ALLOW: "-Wl,-z,now"
         LD_LIBRARY_PATH: "/usr/local/lib"
       timeout-minutes: 8
       run: |
         sudo ldconfig
+        echo "replace github.com/canonical/go-dqlite => ./go-dqlite" >>go.mod
         go get golang.org/x/sync/semaphore
-        go get -tags libsqlite3 github.com/canonical/go-dqlite/app
         go build -tags libsqlite3 -o resources/app resources/app.go
         sudo ufw disable
         sleep 0.200
