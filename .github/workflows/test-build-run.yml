@@ -70,12 +70,6 @@ on:
 
 jobs:
   test:
-    strategy:
-      fail-fast: false
-      matrix:
-        workload: ${{ fromJSON(inputs.workloads) }}
-        nemesis: ${{ fromJSON(inputs.nemeses) }}
-        disk: ${{ fromJSON(inputs.disk) }}
     runs-on: ubuntu-20.04
     timeout-minutes: 25
     steps:
@@ -135,72 +129,44 @@ jobs:
 
     - name: Build raft
       run: |
-          git clone --branch ${{ inputs.raft-branch || 'master' }} --depth 1 ${{ inputs.raft-repo || 'https://github.com/canonical/raft' }}
-          cd raft
-          git log -n 1
-          autoreconf -i
-          ./configure --enable-debug --enable-backtrace
-          make -j4
-          sudo make install
-          cd ..
+        git clone --branch ${{ inputs.raft-branch || 'master' }} --depth 1 ${{ inputs.raft-repo || 'https://github.com/canonical/raft' }}
+        cd raft
+        git log -n 1
+        autoreconf -i
+        ./configure --enable-debug --enable-backtrace
+        make -j4
+        sudo make install
+        cd ..
 
     - name: Build dqlite
       run: |
         git clone --branch ${{ inputs.dqlite-branch || 'master' }} --depth 1 ${{ inputs.dqlite-repo || 'https://github.com/canonical/dqlite' }}
-          cd dqlite
-          git log -n 1
-          autoreconf -i
-          ./configure --enable-debug --enable-backtrace
-          make -j4
-          sudo make install
-          cd ..
+        cd dqlite
+        git log -n 1
+        autoreconf -i
+        ./configure --enable-debug --enable-backtrace
+        make -j4
+        sudo make install
+        cd ..
 
-    - name: Test
+    - name: Build app for Jepsen
+      with
       env:
-        CGO_LDFLAGS_ALLOW: "-Wl,-z,now"
         LD_LIBRARY_PATH: "/usr/local/lib"
-      timeout-minutes: 8
       run: |
         sudo ldconfig
         go get golang.org/x/sync/semaphore
         go get -tags libsqlite3 github.com/canonical/go-dqlite/app
         go build -tags libsqlite3 -o resources/app resources/app.go
+
+    - name: Shut down firewall
         sudo ufw disable
         sleep 0.200
         sudo systemctl stop ufw.service
-        sudo ./resources/network.sh setup 5
-        if test ${{ matrix.workload }} = set; then echo 180 >time-limit; else echo 240 >time-limit; fi
-        lein run test --no-ssh --binary $(pwd)/resources/app \
-          --workload ${{ matrix.workload }} \
-          --nemesis ${{ matrix.nemesis }} \
-          --rate 100 \
-          --time-limit $(cat time-limit) \
-          --disk ${{ matrix.disk }} \
-          ${{ inputs.cli-opts }}
-        sudo ./resources/network.sh teardown 5
 
-    - name: Jepsen log Summary
-      if: ${{ always() }}
-      run: tail -n 100 store/current/jepsen.log > store/current/tail-jepsen.log
-
-    - name: Summary Artifact
-      if: ${{ always() }}
-      uses: actions/upload-artifact@v3
+    - name: Test
+      uses: ./.github/workflows/test-only.yml
       with:
-        name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}-summary
-        path: |
-          store/dqlite*/**/results.edn
-          store/dqlite*/**/latency-raw.png
-          store/dqlite*/**/tail-jepsen.log
-          !**/current/
-          !**/latest/
-
-    - name: Failure Artifact
-      if: ${{ failure() }}
-      uses: actions/upload-artifact@v3
-      with:
-        name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}-failure
-        path: |
-          store/dqlite*
-          !**/current/
-          !**/latest/
+        workloads: ${{ inputs.workloads }}
+        nemeses: ${{ inputs.nemeses }}
+        disk: ${{ inputs.disk }}
