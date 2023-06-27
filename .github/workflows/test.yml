@@ -22,7 +22,7 @@ on:
 
 jobs:
   expected-pass:
-    uses: canonical/jepsen.dqlite/.github/workflows/test-build-run.yml@master
+    uses: ./.github/workflows/test-build-run.yml
     with:
       workloads: >
         [ 'append', 'bank', 'set' ]
