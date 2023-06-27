@@ -68,12 +68,6 @@ on:
         type: string
         required: false
 
-env:
-  RAFT_REPO:   'https://github.com/Canonical/raft.git'
-  RAFT_BRANCH: 'master'
-  DQLITE_REPO:   'https://github.com/Canonical/dqlite.git'
-  DQLITE_BRANCH: 'master'
-
 jobs:
   test:
     strategy:
@@ -141,7 +135,7 @@ jobs:
 
     - name: Build raft
       run: |
-          git clone --branch ${{ inputs.raft-branch || env.RAFT_BRANCH }} --depth 1 ${{ inputs.raft-repo || env.RAFT_REPO }}
+          git clone --branch ${{ inputs.raft-branch || 'master' }} --depth 1 ${{ inputs.raft-repo || 'https://github.com/canonical/raft' }}
           cd raft
           git log -n 1
           autoreconf -i
@@ -152,7 +146,7 @@ jobs:
 
     - name: Build dqlite
       run: |
-          git clone --branch ${{ inputs.dqlite-branch || env.DQLITE_BRANCH }} --depth 1 ${{ inputs.dqlite-repo || env.DQLITE_REPO }}
+        git clone --branch ${{ inputs.dqlite-branch || 'master' }} --depth 1 ${{ inputs.dqlite-repo || 'https://github.com/canonical/dqlite' }}
           cd dqlite
           git log -n 1
           autoreconf -i
