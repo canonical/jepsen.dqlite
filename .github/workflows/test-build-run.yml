@@ -4,20 +4,20 @@ on:
   workflow_dispatch:
     inputs:
       raft-repo:
-        description: 'Raft Repo'
-        default: 'https://github.com/Canonical/raft.git'
+        description: 'raft repo'
+        default: 'canonical/raft'
       raft-ref:
         description: 'raft branch or ref'
         default: 'master'
       dqlite-repo:
-        description: 'Dqlite Repo'
-        default: 'https://github.com/Canonical/dqlite.git'
+        description: 'dqlite repo'
+        default: 'canonical/dqlite'
       dqlite-ref:
         description: 'dqlite branch or ref'
         default: 'master'
       go-dqlite-repo:
         description: 'go-dqlite repo'
-        default: 'https://github.com/canonical/go-dqlite'
+        default: 'canonical/go-dqlite'
       go-dqlite-ref:
         description: 'go-dqlite branch or ref'
         default: 'master'
@@ -90,11 +90,11 @@ on:
         required: false
 
 env:
-  RAFT_REPO:   'https://github.com/Canonical/raft.git'
+  RAFT_REPO:   'canonical/raft'
   RAFT_BRANCH: 'master'
-  DQLITE_REPO:   'https://github.com/Canonical/dqlite.git'
+  DQLITE_REPO:   'canonical/dqlite'
   DQLITE_BRANCH: 'master'
-  GO_DQLITE_REPO: 'https://github.com/canonical/go-dqlite'
+  GO_DQLITE_REPO: 'canonical/go-dqlite'
   GO_DQLITE_BRANCH: 'master'
 
 jobs:
