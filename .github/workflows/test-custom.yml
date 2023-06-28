@@ -6,14 +6,14 @@ on:
       raft-repo:
         description: Raft Repo
         default: https://github.com/Canonical/raft.git
-      raft-branch:
-        description: Raft Branch
+      raft-ref:
+        description: raft branch or ref
         default: master
       dqlite-repo:
         description: Dqlite Repo
         default: https://github.com/Canonical/dqlite.git
-      dqlite-branch:
-        description: Dqlite Branch
+      dqlite-ref:
+        description: dqlite branch or ref
         default: master
       workloads:
         description: Workloads as a JSON array, e.g. [ 'append' ]
@@ -37,8 +37,8 @@ jobs:
       disk: ${{ inputs.disk }}
       cli-opts: ${{ inputs.cli-opts }}
       jepsen-dqlite-repo: canonical/jepsen.dqlite
-      jepsen-dqlite-branch: master
+      jepsen-dqlite-ref: master
       raft-repo: ${{ inputs.raft-repo || 'https://github.com/Canonical/raft.git' }}
-      raft-branch: ${{ inputs.raft-branch || 'master' }}
+      raft-ref: ${{ inputs.raft-ref || 'master' }}
       dqlite-repo: ${{ inputs.dqlite-repo || 'https://github.com/Canonical/dqlite.git' }}
-      dqlite-branch: ${{ inputs.dqlite-branch || 'master' }}
+      dqlite-ref: ${{ inputs.dqlite-ref || 'master' }}
