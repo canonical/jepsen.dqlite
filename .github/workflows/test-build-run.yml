@@ -15,6 +15,12 @@ on:
       dqlite-branch:
         description: 'Dqlite Branch'
         default: 'master'
+      go-dqlite-repo:
+        description: 'go-dqlite repo'
+        default: 'https://github.com/canonical/go-dqlite'
+      go-dqlite-branch:
+        description: 'go-dqlite branch'
+        default: 'master'
       workloads:
         description: 'Jepsen workloads as JSON, e.g. [ append, bank ]'
         required: true
@@ -53,6 +59,12 @@ on:
         type: string
         required: false
       dqlite-branch:
+        type: string
+        required: false
+      go-dqlite-repo:
+        type: string
+        required: false
+      go-dqlite-branch:
         type: string
         required: false
       workloads:
