@@ -177,6 +177,7 @@ jobs:
         ./configure --enable-debug --enable-backtrace
         make -j4
         sudo make install
+        sudo ldconfig
 
     - name: Run raft tests
       if: ${{ inputs.check-raft }}
@@ -199,6 +200,7 @@ jobs:
         ./configure --enable-debug --enable-backtrace
         make -j4
         sudo make install
+        sudo ldconfig
 
     - name: Run dqlite tests
       if: ${{ inputs.check-dqlite }}
@@ -219,7 +221,6 @@ jobs:
         LD_LIBRARY_PATH: "/usr/local/lib"
         GO_DQLITE_MULTITHREAD: "1"
       run: |
-        sudo ldconfig
         cd go-dqlite
         go get -t -tags libsqlite3 ./...
         go test -v -race ./...
@@ -232,7 +233,6 @@ jobs:
         LD_LIBRARY_PATH: "/usr/local/lib"
       timeout-minutes: 8
       run: |
-        sudo ldconfig
         echo "replace github.com/canonical/go-dqlite => ./go-dqlite" >>go.mod
         go get golang.org/x/sync/semaphore
         go build -tags libsqlite3 -o resources/app resources/app.go
