@@ -32,11 +32,11 @@ on:
       jepsen-dqlite-repo:
         type: string
         required: false
-        default: https://github.com/canonical/jepsen.dqlite.git
+        default: 'canonical/jepsen.dqlite'
       jepsen-dqlite-branch:
         type: string
         required: false
-        default: master
+        default: 'master'
       jepsen-repo:
         type: string
         required: false
