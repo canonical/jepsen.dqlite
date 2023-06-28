@@ -182,7 +182,7 @@ jobs:
       if: ${{ inputs.check-raft }}
       run: |
         cd raft
-        make -j4 check
+        make -j4 check || (cat ./test-suite.log && false)
 
     - name: Check out dqlite
       uses: actions/checkout@v3
@@ -204,7 +204,7 @@ jobs:
       if: ${{ inputs.check-dqlite }}
       run: |
         cd dqlite
-        make -j4 check
+        make -j4 check || (cat ./test-suite.log && false)
 
     - name: Check out go-dqlite
       uses: actions/checkout@v3
