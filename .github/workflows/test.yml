@@ -8,16 +8,16 @@ on:
   workflow_dispatch:
     inputs:
       raft-repo:
-        description: Raft Repo
-        default: https://github.com/Canonical/raft.git
-      raft-branch:
-        description: Raft Branch
+        description: raft repo
+        default: canonical/raft
+      raft-ref:
+        description: raft branch or ref
         default: master
       dqlite-repo:
-        description: Dqlite Repo
-        default: https://github.com/Canonical/dqlite.git
-      dqlite-branch:
-        description: Dqlite Branch
+        description: dqlite repo
+        default: canonical/dqlite
+      dqlite-ref:
+        description: dqlite branch or ref
         default: master
 
 jobs:
@@ -33,8 +33,8 @@ jobs:
       disk: >
         [ '0' ]
       jepsen-dqlite-repo: ${{ github.repository }}
-      jepsen-dqlite-branch: ${{ github.ref }}
-      raft-repo: ${{ inputs.raft-repo || 'https://github.com/Canonical/raft.git' }}
-      raft-branch: ${{ inputs.raft-branch || 'master' }}
-      dqlite-repo: ${{ inputs.dqlite-repo || 'https://github.com/Canonical/dqlite.git' }}
-      dqlite-branch: ${{ inputs.dqlite-branch || 'master' }}
+      jepsen-dqlite-ref: ${{ github.ref }}
+      raft-repo: ${{ inputs.raft-repo || 'canonical/raft' }}
+      raft-ref: ${{ inputs.raft-ref || 'master' }}
+      dqlite-repo: ${{ inputs.dqlite-repo || 'canonical/dqlite' }}
+      dqlite-ref: ${{ inputs.dqlite-ref || 'master' }}
