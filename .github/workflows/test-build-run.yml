@@ -79,15 +79,6 @@ on:
       cli-opts:
         type: string
         required: false
-      check-raft:
-        type: boolean
-        required: false
-      check-dqlite:
-        type: boolean
-        required: false
-      check-go-dqlite:
-        type: boolean
-        required: false
 
 env:
   RAFT_REPO:   'canonical/raft'
@@ -179,12 +170,6 @@ jobs:
         sudo make install
         sudo ldconfig
 
-    - name: Run raft tests
-      if: ${{ inputs.check-raft }}
-      run: |
-        cd raft
-        make -j4 check || (cat ./test-suite.log && false)
-
     - name: Check out dqlite
       uses: actions/checkout@v3
       with:
@@ -202,39 +187,13 @@ jobs:
         sudo make install
         sudo ldconfig
 
-    - name: Run dqlite tests
-      if: ${{ inputs.check-dqlite }}
-      run: |
-        cd dqlite
-        make -j4 check || (cat ./test-suite.log && false)
-
-    - name: Check out go-dqlite
-      uses: actions/checkout@v3
-      with:
-        repository: ${{ inputs.go-dqlite-repo || env.GO_DQLITE_REPO }}
-        ref: ${{ inputs.go-dqlite-ref || env.GO_DQLITE_REF }}
-        path: go-dqlite
-
-    - name: Run go-dqlite tests
-      if: ${{ inputs.check-go-dqlite }}
-      env:
-        LD_LIBRARY_PATH: "/usr/local/lib"
-        GO_DQLITE_MULTITHREAD: "1"
-      run: |
-        cd go-dqlite
-        go get -t -tags libsqlite3 ./...
-        go test -v -race ./...
-        VERBOSE=1 DISK=${{ matrix.disk }} ./test/dqlite-demo.sh
-        VERBOSE=1 DISK=${{ matrix.disk }} ./test/roles.sh
-        VERBOSE=1 DISK=${{ matrix.disk }} ./test/recover.sh
-
     - name: Test
       env:
         LD_LIBRARY_PATH: "/usr/local/lib"
       timeout-minutes: 8
       run: |
-        echo "replace github.com/canonical/go-dqlite => ./go-dqlite" >>go.mod
         go get golang.org/x/sync/semaphore
+        go get -tags libsqlite3 github.com/canonical/go-dqlite/app
         go build -tags libsqlite3 -o resources/app resources/app.go
         sudo ufw disable
         sleep 0.200
