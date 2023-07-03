@@ -221,6 +221,9 @@
     (reify db/DB
       (setup! [_ test node]
         "Install and start the test application."
+        ;; The tmpfs must exist *before* the application starts
+        (when tmpfs
+          (db/setup! tmpfs test node))
         (info "Setting up test application")
         (install! test node)
         (start! test node)
@@ -242,9 +245,7 @@
                                      (catch InterruptedException e
                                        (reset! running? false))
                                      (catch Throwable t
-                                       (warn t "Primary monitoring thread crashed")))))))))()
-        (when tmpfs
-          (db/setup! tmpfs test node))
+                                       (warn t "Primary monitoring thread crashed")))))))))
         )
 
       (teardown! [_ test node]
