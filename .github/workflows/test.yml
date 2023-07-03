@@ -29,9 +29,9 @@ jobs:
       nemeses: >
         [ 'none', 'partition', 'kill', 'stop', 'disk', 'member',
           'partition,stop', 'partition,kill', 'partition,member',
-          'packet,stop', 'pause' ]
+          'packet,stop', 'pause', 'partition,disk', 'pause,disk' ]
       disk: >
-        [ '0' ]
+        [ '0', '1' ]
       jepsen-dqlite-repo: ${{ github.repository }}
       jepsen-dqlite-ref: ${{ github.ref }}
       raft-repo: ${{ inputs.raft-repo || 'canonical/raft' }}
