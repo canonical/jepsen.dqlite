@@ -98,7 +98,7 @@ run-inner() {
 	go get golang.org/x/sync/semaphore
 	go get -tags libsqlite3 github.com/canonical/go-dqlite/app
 	ldconfig
-	CGO_LDFLAGS_ALLOW='-Wl,-z,now' go build -tags libsqlite3 -o resources/app resources/app.go
+	go build -tags libsqlite3 -o resources/app resources/app.go
 	lein run test --no-ssh --binary "$(pwd)/resources/app" "$@"
 	popd
 
