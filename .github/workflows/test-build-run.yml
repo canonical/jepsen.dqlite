@@ -226,6 +226,7 @@ jobs:
           !**/latest/
 
     - name: Failure Artifact
+      if: ${{ always() }}
       uses: actions/upload-artifact@v3
       with:
         name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}-failure
