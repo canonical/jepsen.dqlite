@@ -263,10 +263,8 @@
         (let [tarball    (str dir "/data.tar.bz2")
               ls-cmd     (str "ls " core-dump-glob)
               lines      (-> (try (c/exec "sh" "-c" ls-cmd)
-                               (catch Exception e "OH NO AN EXCEPTION"))
+                               (catch Exception e ""))
                               (str/split #"\n"))
-              _ (info lines)
-              _ (info (try (c/exec :ls data-dir) (catch Exception e "A DIFFERENT EXCEPTION")))
               core-dumps (->> lines
                               (remove str/blank?)
                               (into []))
