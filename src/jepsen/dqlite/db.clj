@@ -273,7 +273,7 @@
           (try
             (info "RUNNING TAR")
             (info "THIS IS THE TARBALL STUFF" (c/exec :tar :cvjf tarball data-dir))
-            (catch Exception e (str "caught exception: " (.getMessage e))))
+            (catch Exception e (info "caught exception: " (.getMessage e))))
           everything))
 
       db/Process
