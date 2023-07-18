@@ -271,8 +271,8 @@
               app-binary (when (seq core-dumps) binary)
               everything (remove nil? [logfile tarball app-binary])]
           (try
-            (c/exec :tar :cjf tarball data-dir)
-            (catch Exception e (str "caught exception: " (.getMessage e))))
+            (c/exec :sudo :tar :cjf tarball data-dir)
+            (catch Exception e (info "caught exception: " (.getMessage e))))
           everything))
 
       db/Process
