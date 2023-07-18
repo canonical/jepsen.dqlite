@@ -272,7 +272,7 @@
               everything (remove nil? [logfile tarball app-binary])]
           (try
             (info "RUNNING TAR")
-            (info "THIS IS THE TARBALL STUFF" (c/exec :tar :cvjf tarball data-dir))
+            (info (c/exec :sudo :tar :cvjf tarball data-dir))
             (catch Exception e (info "caught exception: " (.getMessage e))))
           everything))
 
