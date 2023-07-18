@@ -271,6 +271,7 @@
               app-binary (when (seq core-dumps) binary)
               everything (remove nil? [logfile tarball app-binary])]
           (try
+            (info "RUNNING TAR")
             (info "THIS IS THE TARBALL STUFF" (c/exec :tar :cvjf tarball data-dir))
             (catch Exception e (str "caught exception: " (.getMessage e))))
           everything))
