@@ -130,7 +130,7 @@ jobs:
       timeout-minutes: 15
       run: |
         sudo apt update
-        sudo apt install -y gnuplot-nox libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential
+        sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential
         printf core | sudo tee /proc/sys/kernel/core_pattern
 
     - name: Install local Jepsen
@@ -151,6 +151,7 @@ jobs:
         make -j4
         sudo make install
         sudo ldconfig
+        cd ..
 
     - name: Check out raft
       uses: actions/checkout@v3
@@ -161,15 +162,12 @@ jobs:
 
     - name: Build raft
       run: |
-        shopt -s globstar
         cd raft
         git log -n 1
-        cc -pthread -g3 -shared -fPIC \
-          -D_GNU_SOURCE -DLZ4_AVAILABLE -DLZ4_ENABLED -DHAVE_LINUX_AIO_ABI_H -DRAFT_ASSERT_WITH_BACKTRACE \
-          -o libraft.so src/**/*.c -lbacktrace -luv -llz4
-        sudo install -m755 libraft.so /usr/local/lib
-        sudo install -m644 include/raft.h /usr/local/include
-        sudo install -m644 -D -t /usr/local/include/raft include/raft/*.h
+        autoreconf -i
+        ./configure --enable-debug --enable-backtrace
+        make -j4
+        sudo make install
         sudo ldconfig
 
     - name: Check out dqlite
@@ -181,13 +179,12 @@ jobs:
 
     - name: Build dqlite
       run: |
-        shopt -s globstar
         cd dqlite
         git log -n 1
         autoreconf -i
-        cc -pthread -g3 -shared -fPIC -D_GNU_SOURCE -DDQLITE_ASSERT_WITH_BACKTRACE -o libdqlite.so src/**/*.c -lbacktrace -luv -lsqlite3 -lraft
-        sudo install -m755 libdqlite.so /usr/local/lib
-        sudo install -m644 include/dqlite.h /usr/local/include
+        ./configure --enable-debug --enable-backtrace
+        make -j4
+        sudo make install
         sudo ldconfig
 
     - name: Test
