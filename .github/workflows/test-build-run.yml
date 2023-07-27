@@ -127,14 +127,15 @@ jobs:
       uses: actions/setup-go@v3
 
     - name: Setup environment
-      timeout-minutes: 15
       run: |
-        sudo apt update
-        sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential
+        timeout 10m sudo apt update && status=$? || status=$?
+        test $status -eq 124 && echo TIMEDOUT=yes >> $GITHUB_ENV
+        timeout 10m sudo apt install -y gnuplot libsqlite3-dev libuv1-dev liblz4-dev libjna-java graphviz leiningen build-essential && status=$? || status=$?
+        test $status -eq 124 && echo TIMEDOUT=yes >> $GITHUB_ENV
         printf core | sudo tee /proc/sys/kernel/core_pattern
 
     - name: Install local Jepsen
-      if: ${{ inputs.jepsen-repo && inputs.jepsen-branch }}
+      if: ${{ inputs.jepsen-repo && inputs.jepsen-branch && env.TIMEDOUT != 'yes' }}
       run: |
         git clone --branch ${{ inputs.jepsen-branch }} --depth 1 ${{ inputs.jepsen-repo }}
         cd jepsen/jepsen
@@ -143,6 +144,7 @@ jobs:
         cd ../..
 
     - name: Install libbacktrace
+      if: ${{ env.TIMEDOUT != 'yes' }}
       run: |
         git clone https://github.com/ianlancetaylor/libbacktrace --depth 1
         cd libbacktrace
@@ -154,6 +156,7 @@ jobs:
         cd ..
 
     - name: Check out raft
+      if: ${{ env.TIMEDOUT != 'yes' }}
       uses: actions/checkout@v3
       with:
         repository: ${{ inputs.raft-repo || env.RAFT_REPO }}
@@ -161,6 +164,7 @@ jobs:
         path: raft
 
     - name: Build raft
+      if: ${{ env.TIMEDOUT != 'yes' }}
       run: |
         cd raft
         git log -n 1
@@ -171,6 +175,7 @@ jobs:
         sudo ldconfig
 
     - name: Check out dqlite
+      if: ${{ env.TIMEDOUT != 'yes' }}
       uses: actions/checkout@v3
       with:
         repository: ${{ inputs.dqlite-repo || env.DQLITE_REPO }}
@@ -178,6 +183,7 @@ jobs:
         path: dqlite
 
     - name: Build dqlite
+      if: ${{ env.TIMEDOUT != 'yes' }}
       run: |
         cd dqlite
         git log -n 1
@@ -188,6 +194,7 @@ jobs:
         sudo ldconfig
 
     - name: Test
+      if: ${{ env.TIMEDOUT != 'yes' }}
       env:
         LD_LIBRARY_PATH: "/usr/local/lib"
       timeout-minutes: 8
@@ -210,11 +217,11 @@ jobs:
         sudo ./resources/network.sh teardown 5
 
     - name: Jepsen log Summary
-      if: ${{ always() }}
+      if: ${{ !cancelled() && env.TIMEDOUT != 'yes' }}
       run: tail -n 100 store/current/jepsen.log > store/current/tail-jepsen.log
 
     - name: Summary Artifact
-      if: ${{ always() }}
+      if: ${{ !cancelled() && env.TIMEDOUT != 'yes' }}
       uses: actions/upload-artifact@v3
       with:
         name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}-summary
@@ -226,7 +233,7 @@ jobs:
           !**/latest/
 
     - name: Failure Artifact
-      if: ${{ failure() }}
+      if: ${{ failure() && env.TIMEDOUT != 'yes' }}
       uses: actions/upload-artifact@v3
       with:
         name: jepsen-data-${{ matrix.workload }}-${{ matrix.nemesis }}-failure
