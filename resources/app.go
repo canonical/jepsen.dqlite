@@ -621,6 +621,7 @@ func main() {
 		app.WithRolesAdjustmentFrequency(time.Second),
 		app.WithSnapshotParams(dqlite.SnapshotParams{Threshold: 128, Trailing: 1024}),
 		app.WithDiskMode(*disk != 0),
+		app.WithAutoRecovery(false),
 	}
 
 	// When rejoining set app.WithCluster() to the full list of existing
