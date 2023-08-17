@@ -2,7 +2,13 @@ name: Dqlite Jepsen tests - expected pass
 
 on:
   push:
+    paths-ignore:
+      - 'image-version'
+      - 'Dockerfile'
   pull_request:
+    paths-ignore:
+      - 'image-version'
+      - 'Dockerfile'
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
