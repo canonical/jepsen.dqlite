@@ -24,10 +24,8 @@ jobs:
 
       - name: Build
         run: |
-          version=$(cat image-version)
-          docker build -t ghcr.io/canonical/jepsen-dqlite-unofficial:$version .
+          docker build -t ghcr.io/canonical/jepsen-dqlite-unofficial:latest .
 
       - name: Push
         run: |
-          version=$(cat image-version)
-          docker push ghcr.io/canonical/jepsen-dqlite-unofficial:$version
+          docker push ghcr.io/canonical/jepsen-dqlite-unofficial:latest
