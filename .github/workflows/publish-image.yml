@@ -1,0 +1,33 @@
+name: Publish container image to GHCR
+
+on:
+  push:
+    branches:
+      - 'master'
+    paths:
+      - 'image-version'
+      - 'Dockerfile'
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: GHCR login
+        uses: docker/login-action@v2
+        with:
+          registry: 'ghcr.io'
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        run: |
+          version=$(cat image-version)
+          docker build -t ghcr.io/canonical/jepsen-dqlite-unofficial:$version .
+
+      - name: Push
+        run: |
+          version=$(cat image-version)
+          docker push ghcr.io/canonical/jepsen-dqlite-unofficial:$version
