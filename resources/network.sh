@@ -34,7 +34,8 @@ fi
 if [ "${cmd}" = "teardown" ]; then
     ip link del "${BRIDGE}"
     for i in $(seq 5); do
-        sed -i "/^10.2.1.1${i} n${i}/d" /etc/hosts
+        sed -e "/^10.2.1.1${i} n${i}/d" /etc/hosts >/tmp/jepsen-network-hosts
+        cp /tmp/jepsen-network-hosts /etc/hosts
     done
     rm -f $FILE
     exit 0
