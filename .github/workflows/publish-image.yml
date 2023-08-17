@@ -5,7 +5,6 @@ on:
     branches:
       - 'master'
     paths:
-      - 'image-version'
       - 'Dockerfile'
 
 jobs:
