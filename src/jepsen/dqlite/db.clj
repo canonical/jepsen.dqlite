@@ -73,14 +73,30 @@
                         :-latency (:latency test)
                         :-cluster (str/join "," (:nodes test))))))
 
+(defn grepkill!
+  "Kills processes by grepping for the given string. If a signal is given,
+  sends that signal instead. Signals may be either numbers or names, e.g.
+  :term, :hup, ..."
+  ([signal pattern]
+   (try+ (let [pids (->> pattern
+                         (c/exec :pgrep)
+                         (#(str/split %2 %1) #"\s+"))]
+           (doseq [pid pids]
+             (c/exec :kill (str "-" (name signal)) pid)
+             (c/exec :tail :-f (str "--pid=" pid) "/dev/null")))
+         (catch [:type :jepsen.control/nonzero-exit, :exit 0] _
+           nil)
+         (catch [:type :jepsen.control/nonzero-exit, :exit 123] e
+           (if (re-find #"No such process" (:err e))
+             ; Ah, process already exited
+             nil
+             (throw+ e))))))
 (defn kill!
   "Gracefully kill, `SIGTERM`, the Go dqlite test application."
   [_test node]
-  (let [signal :SIGTERM]
-    (info "Killing" bin "with" signal "on" node)
-    (c/su
-     (cu/grepkill! signal bin))
-    :killed))
+  (info "Killing" bin "with SIGTERM on" node)
+  (c/su (grepkill! :SIGTERM bin))
+  :killed)
 
 (defn stop!
   "Stop the Go dqlite test application with `stop-daemon!`,
