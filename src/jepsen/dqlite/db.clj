@@ -86,6 +86,8 @@
              (c/exec :tail :-f (str "--pid=" pid) "/dev/null")))
          (catch [:type :jepsen.control/nonzero-exit, :exit 0] _
            nil)
+         (catch [:type :jepsen.control/nonzero-exit, :exit 1] _
+           nil)
          (catch [:type :jepsen.control/nonzero-exit, :exit 123] e
            (if (re-find #"No such process" (:err e))
              ; Ah, process already exited
