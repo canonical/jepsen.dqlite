@@ -66,6 +66,8 @@
                          :logfile logfile
                          :pidfile pidfile
                          :chdir   data-dir}
+                        "/usr/bin/strace"
+                        :-e "signals"
                         binary
                         :-dir data-dir
                         :-disk (:disk test)

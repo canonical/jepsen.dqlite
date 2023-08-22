@@ -175,6 +175,10 @@ jobs:
         sudo sysctl -w kernel.core_pattern=core
         sudo sysctl -w fs.suid_dumpable=2
 
+    - name: install strace
+      run: |
+        sudo apt install -y strace
+
     - name: Test
       env:
         LD_LIBRARY_PATH: "/usr/local/lib"
