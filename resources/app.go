@@ -756,6 +756,8 @@ func main() {
 	signal.Notify(ch, syscall.SIGINT)
 	signal.Notify(ch, syscall.SIGTERM)
 
+	log.Printf("pid: %d", os.Getpid())
+
 	<-ch
 
 	log.Printf("received shutdown signal")
