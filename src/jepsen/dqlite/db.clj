@@ -96,6 +96,8 @@
 (defn kill!
   "Gracefully kill, `SIGTERM`, the Go dqlite test application."
   [_test node]
+  (info "Killing dqlite with SIGTERM on" node)
+  (c/su (grepkill! :SIGTERM "dqlite"))
   (info "Killing" bin "with SIGTERM on" node)
   (c/su (grepkill! :SIGTERM bin))
   :killed)
