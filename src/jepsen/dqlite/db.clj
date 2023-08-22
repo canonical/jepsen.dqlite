@@ -82,6 +82,7 @@
                          (c/exec :pgrep)
                          (#(str/split %2 %1) #"\s+"))]
            (doseq [pid pids]
+             (info "Killing pid " pid)
              (c/exec :kill (str "-" (name signal)) pid)
              (c/exec :tail :-f (str "--pid=" pid) "/dev/null")))
          (catch [:type :jepsen.control/nonzero-exit, :exit 0] _
