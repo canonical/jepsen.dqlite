@@ -752,7 +752,7 @@ func main() {
 
 	go http.Serve(listener, nil)
 
-	ch := make(chan os.Signal)
+	ch := make(chan os.Signal, 5)
 	signal.Notify(ch, syscall.SIGINT)
 	signal.Notify(ch, syscall.SIGTERM)
 
