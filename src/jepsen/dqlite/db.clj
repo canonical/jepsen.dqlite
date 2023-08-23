@@ -254,9 +254,7 @@
           (future-cancel t))
         (kill! test node)
         (when tmpfs
-          (db/teardown! tmpfs test node))
-        (Thread/sleep 200) ; avoid race: rm: cannot remove '/opt/dqlite/data': Directory not empty
-        (c/su (c/exec :rm :-rf dir)))
+          (db/teardown! tmpfs test node)))
 
       db/LogFiles
       (log-files [_ test node]
