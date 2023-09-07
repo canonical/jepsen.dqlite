@@ -38,7 +38,7 @@ jobs:
         [ '0', '1' ]
       jepsen-dqlite-repo: ${{ github.repository }}
       jepsen-dqlite-ref: ${{ github.ref }}
-      raft-repo: ${{ inputs.raft-repo || 'canonical/raft' }}
-      raft-ref: ${{ inputs.raft-ref || 'master' }}
+      raft-repo: 'cole-miller/raft'
+      raft-ref: 'trace-for-log-issue'
       dqlite-repo: ${{ inputs.dqlite-repo || 'canonical/dqlite' }}
       dqlite-ref: ${{ inputs.dqlite-ref || 'master' }}
