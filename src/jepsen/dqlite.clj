@@ -46,7 +46,7 @@
 
 (def assertion-pattern
   "An egrep pattern for finding assertion errors in log files."
-  "Assertion|raft_start|start-stop-daemon|for jepsen")
+  "Assertion|raft_start\\(\\)|start-stop-daemon|for jepsen")
 
 (defn core-dump-checker
   []
