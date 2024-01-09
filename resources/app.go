@@ -504,6 +504,20 @@ func stableGet(ctx context.Context, app *app.App, nodes []string, roles app.Role
 		log.Printf("for jepsen: cluster is not healthy")
 		bad = true
 	}
+	// Special rule for small clusters.
+	clusterSize := len(changes.State)
+	clusterHasMinSize := clusterSize >= roles.Voters
+	if !clusterHasMinSize {
+		if numOnlineVoters != 1 {
+			log.Printf("for jepsen: small cluster expected 1 voter, got %d", numOnlineVoters)
+			bad = true
+		}
+		if numOnlineSpares != clusterSize-1 {
+			log.Printf("for jepsen: small cluster expected %d spares, got %d", clusterSize-1, numOnlineSpares)
+			bad = true
+		}
+		return "nil", nil
+	}
 	if numOnlineSpares > 0 && numOnlineStandbys < roles.StandBys {
 		log.Printf("for jepsen: extra online spare")
 		bad = true
