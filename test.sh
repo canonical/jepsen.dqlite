@@ -7,11 +7,11 @@
 # ./test.sh setup
 # ./test.sh run JEPSEN_ARGS
 #
-# `setup` should be run only once to launch and initialize the jepsen container.
-# JEPSEN_ARGS are passed directly to Jepsen (you can omit --no-ssh and --binary).
-# For `./test.sh run`, set the env vars RAFT_BRANCH and DQLITE_BRANCH to control
-# which raft/dqlite are built, e.g. RAFT_BRANCH=mathieu/fix will build the `fix`
-# branch of https://github.com/MathieuBordere/raft.
+# `setup` should be run only once to launch and initialize the jepsen
+# container.  JEPSEN_ARGS are passed directly to Jepsen (you can omit --no-ssh
+# and --binary).  For `./test.sh run`, set the env var and DQLITE_BRANCH to
+# control which dqlite is built, e.g. DQLITE_BRANCH=cole/fix will build the
+# `fix` branch of https://github.com/cole-miller/dqlite.
 
 set -o errexit -o pipefail -o nounset
 
@@ -48,13 +48,6 @@ setup-inner() {
 
 	pushd "$workspace"
 
-	git clone -o canonical https://github.com/canonical/raft
-	pushd raft
-	git remote add cole https://github.com/cole-miller/raft
-	git remote add mathieu https://github.com/MathieuBordere/raft
-	git remote add mohamed https://github.com/mwnsiri/raft
-	popd
-
 	git clone -o canonical https://github.com/canonical/dqlite
 	pushd dqlite
 	git remote add cole https://github.com/cole-miller/dqlite
@@ -75,20 +68,11 @@ setup() {
 run-inner() {
 	pushd "$workspace"
 
-	pushd raft
-	git fetch --all
-	git checkout "$RAFT_BRANCH"
-	autoreconf -i
-	./configure --enable-debug
-	make -j"$(nproc)"
-	make install
-	popd
-
 	pushd dqlite
 	git fetch --all
 	git checkout "$DQLITE_BRANCH"
 	autoreconf -i
-	./configure --enable-debug
+	./configure --enable-debug --enable-build-raft
 	make -j"$(nproc)"
 	make install
 	popd
@@ -110,8 +94,7 @@ run() {
 	test "$(sysctl -n fs.suid_dumpable)" -gt 0 || exit 1
 	push-this-repo
 	lxc exec $jepsen -- \
-		env RAFT_BRANCH="${RAFT_BRANCH:-canonical/master}" \
-		    DQLITE_BRANCH="${DQLITE_BRANCH:-canonical/master}" \
+		env DQLITE_BRANCH="${DQLITE_BRANCH:-canonical/master}" \
 		    "$workspace/jepsen.dqlite/test.sh" run-inner "$@"
 }
 

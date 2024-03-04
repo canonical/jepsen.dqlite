@@ -3,12 +3,6 @@ name: Callable Dqlite Jepsen tests
 on:
   workflow_dispatch:
     inputs:
-      raft-repo:
-        description: 'raft repo'
-        default: 'canonical/raft'
-      raft-ref:
-        description: 'raft branch or ref'
-        default: 'master'
       dqlite-repo:
         description: 'dqlite repo'
         default: 'canonical/dqlite'
@@ -49,12 +43,6 @@ on:
       jepsen-branch:
         type: string
         required: false
-      raft-repo:
-        type: string
-        required: false
-      raft-ref:
-        type: string
-        required: false
       dqlite-repo:
         type: string
         required: false
@@ -81,8 +69,6 @@ on:
         required: false
 
 env:
-  RAFT_REPO:   'canonical/raft'
-  RAFT_BRANCH: 'master'
   DQLITE_REPO:   'canonical/dqlite'
   DQLITE_BRANCH: 'master'
   GO_DQLITE_REPO: 'canonical/go-dqlite'
@@ -136,23 +122,6 @@ jobs:
         lein install
         cd ../..
 
-    - name: Check out raft
-      uses: actions/checkout@v3
-      with:
-        repository: ${{ inputs.raft-repo || env.RAFT_REPO }}
-        ref: ${{ inputs.raft-ref || env.RAFT_REF }}
-        path: raft
-
-    - name: Build raft
-      run: |
-        cd raft
-        git log -n 1
-        autoreconf -i
-        ./configure --enable-debug --enable-backtrace
-        make -j4
-        sudo make install
-        sudo ldconfig
-
     - name: Check out dqlite
       uses: actions/checkout@v3
       with:
@@ -165,7 +134,7 @@ jobs:
         cd dqlite
         git log -n 1
         autoreconf -i
-        ./configure --enable-debug --enable-backtrace
+        ./configure --enable-debug --enable-backtrace --enable-build-raft
         make -j4
         sudo make install
         sudo ldconfig
