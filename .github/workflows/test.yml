@@ -11,12 +11,6 @@ on:
     - cron: '0 */1 * * *'
   workflow_dispatch:
     inputs:
-      raft-repo:
-        description: raft repo
-        default: canonical/raft
-      raft-ref:
-        description: raft branch or ref
-        default: master
       dqlite-repo:
         description: dqlite repo
         default: canonical/dqlite
@@ -38,7 +32,5 @@ jobs:
         [ '0', '1' ]
       jepsen-dqlite-repo: ${{ github.repository }}
       jepsen-dqlite-ref: ${{ github.ref }}
-      raft-repo: ${{ inputs.raft-repo || 'canonical/raft' }}
-      raft-ref: ${{ inputs.raft-ref || 'master' }}
       dqlite-repo: ${{ inputs.dqlite-repo || 'canonical/dqlite' }}
       dqlite-ref: ${{ inputs.dqlite-ref || 'master' }}
